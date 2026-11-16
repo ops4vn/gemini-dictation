@@ -42,6 +42,18 @@ dashboard **Quit** button or the Dock icon. `--check` verifies config/API/mic:
 "Gemini Dictation.app/Contents/MacOS/Gemini Dictation" --check
 ```
 
+## First launch (macOS Gatekeeper)
+
+The app is adhoc-signed, so the first launch of a downloaded copy shows
+*"Apple could not verify …"*. One-time bypass:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Gemini Dictation.app"
+```
+
+(or right-click the app → **Open** → **Open**). A paid Apple Developer ID +
+notarization would remove this step permanently.
+
 ## Usage
 
 | Action | Result |
