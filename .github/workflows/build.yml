@@ -26,14 +26,18 @@ jobs:
         env:
           CGO_ENABLED: "1"
         run: |
-          VER="${GITHUB_REF_NAME:-dev}"
+          VER="${GITHUB_REF_NAME#v}"; VER="${VER:-dev}"
           wails build -clean -s -platform darwin/universal \
             -ldflags "-X main.AppVersion=${VER}"
+          # stable adhoc identity (wails' self-sign defaults to a.out)
+          codesign --force --deep --sign - \
+            -i vn.ops4vn.gemini-dictation \
+            "build/bin/Gemini Dictation.app"
 
       - name: Package
         shell: bash
         run: |
-          VER="${GITHUB_REF_NAME:-dev}"
+          VER="${GITHUB_REF_NAME:-dev}"; VER="${VER#v}"
           cd build/bin
           ditto -c -k --keepParent "Gemini Dictation.app" \
             "gemini-dictation-${VER}-macos-universal.zip"
@@ -70,13 +74,13 @@ jobs:
         env:
           CGO_ENABLED: "1"
         run: |
-          VER="${GITHUB_REF_NAME:-dev}"
+          VER="${GITHUB_REF_NAME:-dev}"; VER="${VER#v}"
           wails build -clean -s -ldflags "-X main.AppVersion=${VER}"
 
       - name: Package
         shell: bash
         run: |
-          VER="${GITHUB_REF_NAME:-dev}"
+          VER="${GITHUB_REF_NAME:-dev}"; VER="${VER#v}"
           cd build/bin
           7z a "gemini-dictation-${VER}-windows-x64.zip" "Gemini Dictation.exe"
 

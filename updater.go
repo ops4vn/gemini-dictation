@@ -216,6 +216,14 @@ func bundlePath() (string, error) {
 }
 
 func Relaunch(appPath string) error {
-	time.Sleep(300 * time.Millisecond)
-	return exec.Command("open", "-a", appPath).Start()
+	// Retries: `open` racing the old process exit / singleton lock can leave
+	// the new instance dead — observed live on the 1.0.0→1.0.1 update.
+	var lastErr error
+	for i := 0; i < 3; i++ {
+		time.Sleep(time.Duration(1+i) * time.Second)
+		if lastErr = exec.Command("open", "-a", appPath).Start(); lastErr == nil {
+			return nil
+		}
+	}
+	return lastErr
 }
