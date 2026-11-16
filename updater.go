@@ -12,20 +12,48 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	runtime "runtime"
 	"strings"
 	"time"
 )
 
-// Updater: polls a manifest published to Cloudflare R2 (or any static host):
-//   { "version": "1.1.0", "sha256": "<zip hash>", "url": "https://…/gemini-dictation-1.1.0-macos.zip" }
-// On a newer version: download → verify sha256 → swap the .app bundle → relaunch.
+// Updater: polls a manifest published to Cloudflare R2 / GitHub Releases
+// (any static host):
+//   { "version": "1.1.0",
+//     "macos":   {"sha256": "…", "url": "…-macos-universal.zip"},
+//     "windows": {"sha256": "…", "url": "…-windows-x64.zip"} }
+// Legacy flat manifests ({"version","sha256","url"}) still work.
+// On macOS: download → verify sha256 → swap .app bundle → relaunch.
+// Windows: update check only (auto-swap not supported — download manually).
 // Disabled when update.url is empty.
 
+type PlatformAsset struct {
+	SHA256 string `json:"sha256"`
+	URL    string `json:"url"`
+}
+
 type Manifest struct {
-	Version string `json:"version"`
-	SHA256  string `json:"sha256"`
-	URL     string `json:"url"`
-	Notes   string `json:"notes,omitempty"`
+	Version string         `json:"version"`
+	SHA256  string         `json:"sha256,omitempty"` // legacy flat layout
+	URL     string         `json:"url,omitempty"`
+	MacOS   *PlatformAsset `json:"macos,omitempty"`
+	Windows *PlatformAsset `json:"windows,omitempty"`
+	Notes   string         `json:"notes,omitempty"`
+}
+
+// Asset returns the entry for the running OS (falls back to flat layout).
+func (m *Manifest) Asset() *PlatformAsset {
+	switch runtime.GOOS {
+	case "darwin":
+		if m.MacOS != nil {
+			return m.MacOS
+		}
+	case "windows":
+		if m.Windows != nil {
+			return m.Windows
+		}
+	}
+	return &PlatformAsset{SHA256: m.SHA256, URL: m.URL}
 }
 
 var AppVersion = "dev"
@@ -44,7 +72,7 @@ func CheckUpdate(cfg Config) (*Manifest, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&m); err != nil {
 		return nil, err
 	}
-	if m.Version == "" || m.URL == "" {
+	if m.Version == "" || m.Asset().URL == "" {
 		return nil, errors.New("manifest missing version/url")
 	}
 	return &m, nil
@@ -81,9 +109,14 @@ func VersionNewer(latest, current string) bool {
 
 // ApplyUpdate downloads + verifies + swaps the .app bundle, returns relaunch cmd.
 func ApplyUpdate(m *Manifest, cfg Config) (string, error) {
+	if runtime.GOOS != "darwin" {
+		return "", fmt.Errorf("auto-update on %s not supported — download %s manually",
+			runtime.GOOS, m.Asset().URL)
+	}
 	tmpZip := "/tmp/gemini-dictation-update.zip"
+	a := m.Asset()
 	client := &http.Client{Timeout: 5 * time.Minute}
-	resp, err := client.Get(m.URL)
+	resp, err := client.Get(a.URL)
 	if err != nil {
 		return "", err
 	}
@@ -98,9 +131,9 @@ func ApplyUpdate(m *Manifest, cfg Config) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if got := hex.EncodeToString(h.Sum(nil)); got != m.SHA256 {
+	if got := hex.EncodeToString(h.Sum(nil)); got != a.SHA256 {
 		os.Remove(tmpZip)
-		return "", fmt.Errorf("sha256 mismatch: got %s want %s", got, m.SHA256)
+		return "", fmt.Errorf("sha256 mismatch: got %s want %s", got, a.SHA256)
 	}
 
 	// zip is expected to contain "Gemini Dictation.app/" at its root

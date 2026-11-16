@@ -88,7 +88,7 @@ func (a *App) showPill() {
 	runtime.WindowShow(pillCtx)
 	// re-assert click-through shortly after show (window may be recreated)
 	time.AfterFunc(1200*time.Millisecond, func() {
-		nativeSetClickThrough(pillTitle, true)
+		setClickThrough(pillTitle, true)
 	})
 }
 

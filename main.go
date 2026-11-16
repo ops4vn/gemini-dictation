@@ -7,10 +7,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"syscall"
 	"time"
 
-	"github.com/ops4vn/gemini-dictation/native"
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
@@ -23,13 +21,15 @@ var assets embed.FS
 
 const lockPath = "/tmp/gemini_dictation.lock"
 
+var logPathNote string
+
 func acquireSingleton() *os.File {
 	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		log.Println("singleton lock open failed:", err)
 		return nil
 	}
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+	if !tryLockFile(f.Fd()) {
 		f.Close()
 		log.Println("another instance is already running — exiting")
 		os.Exit(0)
@@ -39,11 +39,14 @@ func acquireSingleton() *os.File {
 
 func main() {
 	log.SetFlags(log.Ltime)
-	// file log (launched via `open` there is no stdout/stderr capture)
-	if home, err := os.UserHomeDir(); err == nil {
-		if f, ferr := os.OpenFile(filepath.Join(home, "Library/Logs/gemini-dictation-go.log"),
+	// file log (launched via `open`/Explorer there is no stdout capture)
+	if cache, err := os.UserCacheDir(); err == nil {
+		dir := filepath.Join(cache, "gemini-dictation")
+		_ = os.MkdirAll(dir, 0o755)
+		if f, ferr := os.OpenFile(filepath.Join(dir, "app.log"),
 			os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644); ferr == nil {
 			log.SetOutput(io.MultiWriter(os.Stderr, f))
+			logPathNote = filepath.Join(dir, "app.log")
 		}
 	}
 
@@ -55,7 +58,7 @@ func main() {
 	lock := acquireSingleton()
 	defer func() {
 		if lock != nil {
-			syscall.Flock(int(lock.Fd()), syscall.LOCK_UN)
+			unlockFile(lock.Fd())
 			lock.Close()
 		}
 	}()
@@ -113,22 +116,17 @@ func (a *App) startupServices(cfg Config, quit chan struct{}) {
 		go micProbe()
 	}
 
-	// event tap
-	ch, ok, err := native.StartTap()
+	// event tap (platform: macOS CGEventTap / Windows LL keyboard hook)
+	ok, err := startTap(func(down bool) { a.OnTap(down) })
 	if err != nil || !ok {
-		log.Println("⚠️ event tap NOT created — grant Input Monitoring to the app, then restart")
+		log.Println("⚠️ key listener NOT installed — grant Input Monitoring (macOS) / check hook (Windows), then restart")
 	} else {
-		go func() {
-			for ev := range ch {
-				a.OnTap(ev.HasOption)
-			}
-		}()
-		log.Println("event tap active — hold ⌥ to dictate")
+		log.Println("key listener active — hold the trigger key to dictate")
 	}
 
 	// click-through for the pill window (after wails window exists)
 	time.AfterFunc(2*time.Second, func() {
-		nativeSetClickThrough(pillTitle, true)
+		setClickThrough(pillTitle, true)
 	})
 
 	// dashboard (control surface + quota)

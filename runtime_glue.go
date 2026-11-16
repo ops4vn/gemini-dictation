@@ -6,16 +6,13 @@ import (
 	"log"
 	"math"
 	"os"
-	"os/exec"
 	"sync"
 	"time"
 
-	"github.com/ops4vn/gemini-dictation/native"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-// contextCtx alias + helpers shared by app.go/main.go. pillCtx itself is
-// declared in app.go and set by main.go once the wails context is ready.
+// contextCtx alias shared by app.go/main.go; pillCtx lives in app.go.
 type contextCtx = context.Context
 
 // atomicConfig is a tiny mutex-protected config holder.
@@ -36,30 +33,17 @@ func (a *atomicConfig) Store(c Config) {
 	a.mu.Unlock()
 }
 
-// ---------------- native wrappers ----------------
-
-func nativeCursor() (float64, float64, bool) { return native.CursorPos() }
-
-func nativeSetClickThrough(title string, enable bool) bool {
-	return native.SetClickThrough(title, enable)
-}
-
-func micStart() bool    { return native.MicStart() }
-func micStop()          { native.MicStop() }
-func micLevel() float64 { return native.MicLevel() }
-func micDuration() float64 { return native.MicDuration() }
-
-// readSegment reads the fixed temp WAV produced by the mic session.
+// readSegment reads the segment WAV produced by the platform mic layer.
 // Returns (bytes, durationSeconds, rms, err).
 func readSegment() ([]byte, float64, float64, error) {
-	raw, err := os.ReadFile(native.SegmentPath)
+	raw, err := os.ReadFile(segmentPath())
 	if err != nil {
 		return nil, 0, 0, err
 	}
 	if len(raw) < 44 {
 		return nil, 0, 0, nil
 	}
-	data := raw[44:] // standard 44-byte PCM WAV header
+	data := raw[44:] // canonical 44-byte PCM WAV header (both platforms write it)
 	n := len(data) / 2
 	if n == 0 {
 		return raw, 0, 0, nil
@@ -71,10 +55,6 @@ func readSegment() ([]byte, float64, float64, error) {
 		sum += v * v
 	}
 	return raw, dur, math.Sqrt(sum/float64(n)), nil
-}
-
-func playSoundFile(name string) {
-	_ = exec.Command("/usr/bin/afplay", "/System/Library/Sounds/"+name+".aiff").Run()
 }
 
 // primaryScreenSize returns the current screen in logical points.
@@ -92,8 +72,8 @@ func primaryScreenSize() (w, h float64) {
 	return 1440, 900
 }
 
-// micProbe opens/closes the mic briefly at launch so the macOS permission
-// prompt appears early (attributed to the app bundle, not a terminal).
+// micProbe opens/closes the mic briefly at launch so the OS permission
+// prompt appears early (attributed to the app, not a terminal).
 func micProbe() {
 	if !micStart() {
 		log.Println("mic probe failed — grant Microphone permission, then restart")
@@ -102,4 +82,9 @@ func micProbe() {
 	time.Sleep(500 * time.Millisecond)
 	micStop()
 	log.Println("mic probe ok")
+}
+
+func fileExists(p string) bool {
+	_, err := os.Stat(p)
+	return err == nil
 }
