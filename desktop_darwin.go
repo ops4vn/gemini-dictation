@@ -47,6 +47,13 @@ func makeOverlay(title string) bool { return native.MakeOverlay(title) }
 // openURL opens a URL / settings pane (dashboard onboarding buttons).
 func openURL(u string) { exec.Command("open", u).Start() }
 
+// traySetup wires the menu-bar item: open dashboard / quit.
+func traySetup(openDashboard, quit func()) {
+	native.TrayOpenHook = openDashboard
+	native.TrayQuitHook = quit
+	native.TraySetup()
+}
+
 // showWinNoActivate shows the pill without stealing keyboard focus.
 func showWinNoActivate() bool { return native.ShowWindow(pillTitle) }
 

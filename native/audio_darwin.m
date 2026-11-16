@@ -39,6 +39,16 @@ int DictationMakeOverlay(const char *title) {
                 [w setIgnoresMouseEvents:YES];
                 [w setOpaque:NO];
                 [w setBackgroundColor:[NSColor clearColor]];
+                // the webview doesn't fill the window — a ~7px white frame
+                // shows; size it to the content view + dark under-layer
+                [w.contentView setWantsLayer:YES];
+                w.contentView.layer.backgroundColor =
+                    [[NSColor colorWithCalibratedRed:20/255.0 green:22/255.0
+                                                blue:28/255.0 alpha:1.0] CGColor];
+                for (NSView *v in w.contentView.subviews) {
+                    [v setFrame:w.contentView.bounds];
+                    [v setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
+                }
                 // the webview can be nested several levels deep — walk all
                 // descendants or the pill sits on an opaque white rectangle
                 makeWebViewTransparent(w.contentView);
@@ -133,28 +143,22 @@ int DictationAudioStart(void) {
     NSURL *url = [NSURL fileURLWithPath:g_path];
     // stale segment = old bytes bleed into the next transcription
     [[NSFileManager defaultManager] removeItemAtURL:url error:nil];
-    __block int ok = 0;
-    NSDictionary *cfg = settings;
-    CFRunLoopRef loop = audioLoop();
-    if (!loop) return 0;
-    CFRunLoopPerformBlock(loop, kCFRunLoopDefaultMode, ^{
-        NSError *err = nil;
-        AVAudioRecorder *rec = [[AVAudioRecorder alloc] initWithURL:url settings:cfg error:&err];
-        if (!rec) {
-            NSLog(@"[gd] mic init error: %@", err);
-            return;
-        }
-        rec.meteringEnabled = YES;
-        if (![rec record]) {
-            NSLog(@"[gd] mic record refused");
-            return;
-        }
-        g_rec = rec;
-        ok = 1;
-    });
-    CFRunLoopWakeUp(loop);
-    for (int i = 0; i < 100 && !ok; i++) usleep(1000); // brief wait for start
-    return ok;
+    // Created directly on the calling thread — this is the exact code that
+    // captured real speech all day (16:0x recordings). The dedicated audio
+    // thread and dispatch_sync(main) variants both produced garbage/zeros.
+    NSError *err = nil;
+    AVAudioRecorder *rec = [[AVAudioRecorder alloc] initWithURL:url settings:settings error:&err];
+    if (!rec) {
+        NSLog(@"[gd] mic init error: %@", err);
+        return 0;
+    }
+    rec.meteringEnabled = YES;
+    if (![rec record]) {
+        NSLog(@"[gd] mic record refused");
+        return 0;
+    }
+    g_rec = rec;
+    return 1;
 }
 
 double DictationAudioDuration(void) {

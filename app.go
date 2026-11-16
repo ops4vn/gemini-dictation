@@ -61,7 +61,7 @@ func (a *App) placePill() {
 	if !ok || pillCtx == nil {
 		return
 	}
-	const w, h = 380.0, 96.0
+	const w, h = 150.0, 36.0
 	sw, sh := primaryScreenSize()
 	px := x + 18
 	if px+w > sw-4 {

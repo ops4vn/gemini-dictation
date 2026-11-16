@@ -16,6 +16,7 @@ int  DictationTapIsEnabled(void);
 void DictationTapReenable(void);
 int  DictationTapRestart(void);
 int  DictationCursorPos(double *x, double *y);
+void DictationTraySetup(void);
 
 int    DictationAudioStart(void);
 double DictationAudioDuration(void);
@@ -97,6 +98,29 @@ func TapReenable() {
 // TapRestart tears down and recreates the tap (last-resort self-heal).
 func TapRestart() bool {
 	return int(C.DictationTapRestart()) == 1
+}
+
+// Tray hooks, invoked from the native menu-bar item.
+var TrayOpenHook func()
+var TrayQuitHook func()
+
+//export DictationTrayOpen
+func DictationTrayOpen() {
+	if TrayOpenHook != nil {
+		TrayOpenHook()
+	}
+}
+
+//export DictationTrayQuit
+func DictationTrayQuit() {
+	if TrayQuitHook != nil {
+		TrayQuitHook()
+	}
+}
+
+// TraySetup installs the menu-bar item (dashboard + quit).
+func TraySetup() {
+	C.DictationTraySetup()
 }
 
 // MicStart opens a fresh capture session. False = mic denied/broken.

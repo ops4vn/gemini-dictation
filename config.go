@@ -27,6 +27,7 @@ type Config struct {
 	FreeTierLimits   map[string]map[string]float64 `json:"free_tier_limits"`
 	Update           UpdateConfig                 `json:"update"`
 	DebugKeys        bool                         `json:"debug_keys"`
+	Onboarded        bool                         `json:"onboarded"`
 }
 
 type UpdateConfig struct {

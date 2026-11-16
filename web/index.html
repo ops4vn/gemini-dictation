@@ -47,6 +47,7 @@
   <div id="perms" style="display:flex;gap:26px;flex-wrap:wrap"></div>
   <p class="meta" style="margin-top:10px">Bật từng mục trong System Settings rồi chờ vài giây — trạng thái tự cập nhật.
   Nếu bật rồi vẫn ✗: xóa app khỏi danh sách rồi thêm lại (binary mới sau mỗi lần cập nhật).</p>
+  <button id="startbtn" onclick="onboardDone()" style="display:none;margin-top:10px">Bắt đầu dùng →</button>
 </div>
 
 <div class="card" style="margin-top:16px">
@@ -77,6 +78,15 @@ const PERMS = [
   { k: 'paste',name: 'Accessibility',    desc: 'gõ text vào con trỏ', pane: 'accessibility' },
 ];
 
+let onboardDismissed = false;
+
+async function onboardDone() {
+  await fetch('/api/onboarded', { method: 'POST' });
+  onboardDismissed = true;
+  document.getElementById('startbtn').style.display = 'none';
+  document.getElementById('permcard').style.display = 'none';
+}
+
 async function loadPerms() {
   try {
     const p = await (await fetch('/api/perm')).json();
@@ -91,7 +101,10 @@ async function loadPerms() {
           ${ok ? '' : `<button onclick="openPane('${it.pane}')" style="margin-top:6px">Mở Settings</button>`}
         </div>`);
     }
+    const all = PERMS.every(it => p[it.k]);
     document.getElementById('permcard').style.display = 'block';
+    document.getElementById('startbtn').style.display =
+      (all && !onboardDismissed) ? 'inline-block' : 'none';
   } catch {}
 }
 

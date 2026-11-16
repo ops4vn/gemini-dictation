@@ -34,6 +34,7 @@ export namespace main {
 	    free_tier_limits: Record<string, any>;
 	    update: UpdateConfig;
 	    debug_keys: boolean;
+	    onboarded: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Config(source);
@@ -58,6 +59,7 @@ export namespace main {
 	        this.free_tier_limits = source["free_tier_limits"];
 	        this.update = this.convertValues(source["update"], UpdateConfig);
 	        this.debug_keys = source["debug_keys"];
+	        this.onboarded = source["onboarded"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

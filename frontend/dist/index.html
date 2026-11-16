@@ -5,49 +5,46 @@
 <style>
   :root { --bg:#14161c; --dim:#9aa3b5; --text:#f2f4f8 }
   * { margin:0; box-sizing:border-box }
-  html, body { background:transparent; overflow:hidden; height:100%;
+  /* full-bleed dark: if macOS transparency breaks again the pill degrades
+     to a square dark pill — never a white rectangle */
+  html, body { background:var(--bg); overflow:hidden; height:100%;
     -webkit-user-select:none; user-select:none; cursor:default }
-  body { -wails-draggable:nodrag; }
-  #pill { display:none; align-items:center; height:96px; padding:0 18px;
-    background:var(--bg); border-radius:18px; box-shadow:0 8px 30px rgba(0,0,0,.35);
-    font:14px -apple-system,system-ui,sans-serif; color:var(--text) }
+  #pill { display:none; align-items:center; justify-content:center; gap:8px; height:100%; width:100%;
+    padding:0 12px; background:var(--bg); border-radius:10px;
+    font:12px -apple-system,system-ui,sans-serif; color:var(--text) }
   body.rec #pill, body.busy #pill { display:flex }
-  #wave { display:flex; align-items:center; gap:4px; height:34px; width:84px }
-  #wave i { width:4px; border-radius:2px; background:rgba(255,255,255,.95); height:6px }
-  #timer { margin-left:12px; font-size:14px; font-variant-numeric:tabular-nums; white-space:nowrap }
-  #spin { display:none; width:18px; height:18px; border:2.5px solid rgba(255,255,255,.25);
-    border-top-color:#fff; border-radius:50%; animation:sp .8s linear infinite; margin-right:12px }
+  #dot { width:7px; height:7px; border-radius:50%; background:#ff5f57; flex:none }
+  #wave { display:flex; align-items:center; gap:3px; height:18px }
+  #wave i { width:3px; border-radius:1.5px; background:rgba(255,255,255,.95); height:4px }
+  #timer { font-variant-numeric:tabular-nums; white-space:nowrap }
+  #spin { display:none; width:13px; height:13px; border:2px solid rgba(255,255,255,.25);
+    border-top-color:#fff; border-radius:50%; animation:sp .8s linear infinite; flex:none }
   @keyframes sp { to { transform:rotate(360deg) } }
-  #lbl { font-size:13px }
-  body.busy #wave, body.busy #timer { display:none }
+  body.busy #wave, body.busy #dot { display:none }
   body.busy #spin { display:block }
-  body.busy #pill { width:240px }
 </style>
 </head>
 <body>
   <div id="pill">
-    <div id="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div id="dot"></div>
+    <div id="wave"><i></i><i></i><i></i><i></i><i></i><i></i></div>
     <div id="spin"></div>
     <span id="timer">0:00</span>
-    <span id="lbl">Đang chuyển giọng nói…</span>
   </div>
 <script>
 const state = { rec:false, t0:0 };
 const bars = [...document.querySelectorAll('#wave i')];
-const levels = Array(9).fill(0.12);
-let shown = [];
+const levels = Array(6).fill(0.12);
 
 function render() {
-  const peak = Math.max(...levels);
-  for (let i = 0; i < 9; i++) {
-    bars[i].style.height = Math.max(4, levels[i] * 30) + 'px';
+  for (let i = 0; i < 6; i++) {
+    bars[i].style.height = Math.max(3, levels[i] * 18) + 'px';
   }
 }
 function push(l) { levels.shift(); levels.push(Math.max(0.1, Math.min(1, l))); }
 
 function fmt(s) { s = Math.max(0, Math.floor(s)); return (s/60|0) + ':' + String(s%60).padStart(2,'0'); }
 
-window.go.main.App.GetLevel().then(push);
 setInterval(async () => {
   if (state.rec) {
     try { push(await window.go.main.App.GetLevel()); } catch {}

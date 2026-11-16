@@ -195,6 +195,8 @@ func tapEnabled() bool { return true }
 func tapReenable()    {}
 func tapRestart() bool { return true }
 
+func traySetup(openDashboard, quit func()) {} // TODO: windows tray (NotifyIcon)
+
 // overlay restyle is macOS-specific; the Windows pill is already a plain
 // borderless window.
 func makeOverlay(title string) bool { return false }

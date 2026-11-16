@@ -79,8 +79,8 @@ func main() {
 
 	err = wails.Run(&options.App{
 		Title:     pillTitle,
-		Width:     380,
-		Height:    96,
+		Width:     150,
+		Height:    36,
 		Frameless: true,
 		BackgroundColour: &options.RGBA{
 			R: 20, G: 22, B: 28, A: 0, // transparent — pill paints its own dark bg
@@ -131,13 +131,20 @@ func (a *App) startupServices(cfg Config, quit chan struct{}) {
 		makeOverlay(pillTitle)
 	})
 
-	// first-run onboarding: if the key listener can't run (missing Input
-	// Monitoring), open the dashboard so the permission checklist is visible.
+	// first-run onboarding: open the dashboard (permission checklist with
+	// settings shortcuts) until the user marks onboarding done
 	time.AfterFunc(3*time.Second, func() {
-		if !tapEnabled() {
+		c := a.cfg.Load()
+		if !c.Onboarded || !tapEnabled() {
 			openURL(fmt.Sprintf("http://127.0.0.1:%d", cfg.WebPort))
 		}
 	})
+
+	// menu-bar tray (app is Accessory — no Dock icon): dashboard + quit
+	traySetup(
+		func() { openURL(fmt.Sprintf("http://127.0.0.1:%d", cfg.WebPort)) },
+		func() { a.QuitApp() },
+	)
 
 	// Dock activation (launch/reopen) un-hides the window — keep it hidden
 	// while idle so the app stays invisible when not dictating.

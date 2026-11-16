@@ -61,6 +61,21 @@ func StartDashboard(tracker *UsageTracker, cfg *atomicConfig, port int, quit cha
 		json.NewEncoder(w).Encode(permStatus())
 	})
 
+	// mark onboarding done (hides the auto-opened checklist until reinstall)
+	mux.HandleFunc("/api/onboarded", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "POST only", 405)
+			return
+		}
+		c := cfg.Load()
+		c.Onboarded = true
+		cfg.Store(c)
+		if err := SaveConfig(c); err != nil {
+			logf("save onboarding flag: %v", err)
+		}
+		w.Write([]byte(`{"ok":true}`))
+	})
+
 	// open a System Settings privacy pane: mic | input | accessibility
 	mux.HandleFunc("/api/open", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
