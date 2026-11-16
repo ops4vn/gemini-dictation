@@ -148,6 +148,7 @@ func (a *App) onOptionUpLocked() {
 func (a *App) holdFired() {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	a.holdTimer = nil // threshold reached — release must finish, not discard
 	if a.mode != "" || a.busy {
 		return
 	}
