@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"os"
 	"os/exec"
 	"syscall"
 	"time"
@@ -142,6 +143,9 @@ func playSoundFile(name string) {
 
 func pipeTo(cmdPath, text string) {
 	p := exec.Command(cmdPath)
+	// GUI-launched apps have no LANG — pbcopy then decodes stdin as
+	// MacRoman and Vietnamese diacritics turn to mojibake (√° instead of á)
+	p.Env = append(os.Environ(), "LC_CTYPE=UTF-8")
 	stdin, err := p.StdinPipe()
 	if err != nil {
 		return
