@@ -1,4 +1,5 @@
-build/
+build/*
+!build/darwin
 dist/
 __pycache__/
 *.log
