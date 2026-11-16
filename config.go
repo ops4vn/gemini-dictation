@@ -28,6 +28,7 @@ type Config struct {
 	Update           UpdateConfig                 `json:"update"`
 	DebugKeys        bool                         `json:"debug_keys"`
 	Onboarded        bool                         `json:"onboarded"`
+	SystemPrompt     string                       `json:"system_prompt"`
 }
 
 type UpdateConfig struct {
@@ -48,6 +49,7 @@ func Defaults() Config {
 		SilenceRMS:      25,
 		Sounds:          true,
 		ProbeMicOnStart: true,
+		SystemPrompt: "You are a transcription engine. Transcribe the audio VERBATIM and output ONLY the transcript. The speaker often code-switches between Vietnamese and English: keep English technical terms exactly as spoken (e.g. pull request, merge, deploy, Kubernetes, ArgoCD), write Vietnamese with full diacritics, and preserve numbers, file paths and code identifiers literally. Never add, complete or translate anything.",
 		TrailingSpace:   true,
 		RestoreClipboard: true,
 		WebPort:         7788,

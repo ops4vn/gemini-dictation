@@ -35,6 +35,7 @@ export namespace main {
 	    update: UpdateConfig;
 	    debug_keys: boolean;
 	    onboarded: boolean;
+	    system_prompt: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Config(source);
@@ -60,6 +61,7 @@ export namespace main {
 	        this.update = this.convertValues(source["update"], UpdateConfig);
 	        this.debug_keys = source["debug_keys"];
 	        this.onboarded = source["onboarded"];
+	        this.system_prompt = source["system_prompt"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

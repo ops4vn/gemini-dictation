@@ -14,6 +14,10 @@ export function GetLevel() {
   return window['go']['main']['App']['GetLevel']();
 }
 
+export function OnOtherKey() {
+  return window['go']['main']['App']['OnOtherKey']();
+}
+
 export function OnTap(arg1) {
   return window['go']['main']['App']['OnTap'](arg1);
 }

@@ -42,6 +42,11 @@ func Transcribe(wav []byte, cfg Config) (TranscribeResult, error) {
 			},
 		}},
 	}
+	if cfg.SystemPrompt != "" {
+		body["systemInstruction"] = map[string]any{
+			"parts": []any{map[string]string{"text": cfg.SystemPrompt}},
+		}
+	}
 	// flash-lite rejects thinkingConfig with HTTP 400 INVALID_ARGUMENT —
 	// only the thinking-capable models accept a zero budget
 	if cfg.DisableThinking && !strings.Contains(cfg.Model, "lite") {

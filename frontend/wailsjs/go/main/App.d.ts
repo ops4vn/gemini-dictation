@@ -8,6 +8,8 @@ export function GetInfo():Promise<Record<string, any>>;
 
 export function GetLevel():Promise<number>;
 
+export function OnOtherKey():Promise<void>;
+
 export function OnTap(arg1:boolean):Promise<void>;
 
 export function QuitApp():Promise<void>;
