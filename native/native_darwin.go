@@ -21,6 +21,7 @@ void DictationTapReenable(void);
 int  DictationTapRestart(void);
 int  DictationCursorPos(double *x, double *y);
 void DictationTraySetup(void);
+void DictationTraySetState(int ok);
 
 int    DictationAudioStart(void);
 double DictationAudioDuration(void);
@@ -140,6 +141,15 @@ func DictationTrayOpen() {
 func DictationTrayQuit() {
 	if TrayQuitHook != nil {
 		TrayQuitHook()
+	}
+}
+
+// TraySetState colors the tray icon (green ready / red blocked).
+func TraySetState(ok bool) {
+	if ok {
+		C.DictationTraySetState(1)
+	} else {
+		C.DictationTraySetState(0)
 	}
 }
 

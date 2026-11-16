@@ -119,7 +119,7 @@ func (a *App) startupServices(cfg Config, quit chan struct{}) {
 	}
 
 	// event tap (platform: macOS CGEventTap / Windows LL keyboard hook)
-	ok, err := startTap(func(down bool) { a.OnTap(down) })
+	ok, err := startTap(func(down bool) { a.OnTap(down) }, a.OnOtherKey)
 	if err != nil || !ok {
 		log.Println("⚠️ key listener NOT installed — grant Input Monitoring (macOS) / check hook (Windows), then restart")
 	} else {
@@ -146,6 +146,10 @@ func (a *App) startupServices(cfg Config, quit chan struct{}) {
 		func() { a.QuitApp() },
 	)
 
+	// tray color = readiness: green when Input Monitoring + Accessibility
+	// are granted, red while dictation is blocked
+	traySetState(tapPermission() && axTrusted())
+
 	// Dock activation (launch/reopen) un-hides the window — keep it hidden
 	// while idle so the app stays invisible when not dictating.
 	go func() {
@@ -168,6 +172,7 @@ func (a *App) startupServices(cfg Config, quit chan struct{}) {
 		wasOn := true
 		fails := 0
 		for range time.Tick(15 * time.Second) {
+			traySetState(tapPermission() && axTrusted())
 			on := tapEnabled()
 			if on != wasOn {
 				logf("event tap enabled=%v", on)

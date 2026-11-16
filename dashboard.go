@@ -104,16 +104,26 @@ func StartDashboard(tracker *UsageTracker, cfg *atomicConfig, port int, quit cha
 	return http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", port), mux)
 }
 
+var lastIMPrompt, lastAXPrompt time.Time
+
+// promptOnce fires the (blocking) permission request on a goroutine, at
+// most once per minute per service.
+func promptOnce(last *time.Time, missing bool, ask func() bool) {
+	if !missing || time.Since(*last) < time.Minute {
+		return
+	}
+	*last = time.Now()
+	go ask()
+}
+
 // permStatus checks the three macOS permissions the app needs. The paste
 // probe runs the same System Events call PasteAtCursor uses — with a short
 // timeout so a pending prompt can't hang the dashboard.
 func permStatus() map[string]any {
-	st := map[string]any{"tap": tapPermission(), "mic": micProbeQuick(), "paste": axTrusted()}
-	if !st["tap"].(bool) {
-		tapRequest() // make macOS prompt for Input Monitoring
-	}
-	if !st["paste"].(bool) {
-		promptAccessibility() // make macOS ASK for Accessibility (no prompt otherwise)
-	}
+	st := map[string]any{"tap": tapPermission(), "mic": micState.Load(), "paste": axTrusted()}
+	// permission prompts BLOCK until answered — run them async and at most
+	// once a minute or the 5s dashboard poll stacks dialogs
+	promptOnce(&lastIMPrompt, !st["tap"].(bool), tapRequest)
+	promptOnce(&lastAXPrompt, !st["paste"].(bool), promptAccessibility)
 	return st
 }

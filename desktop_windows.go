@@ -109,7 +109,7 @@ func keyboardProc(nCode int32, wParam uintptr, lParam *kbdLLHookStruct) uintptr 
 // are pinned to one locked OS thread. Events are handed to a dispatcher
 // goroutine (ordered, non-blocking) so a slow handler can never trip the
 // hook timeout.
-func startTap(cb func(down bool)) (bool, error) {
+func startTap(cb func(down bool), onOther func()) (bool, error) {
 	hookMu.Lock()
 	defer hookMu.Unlock()
 	if hookPump {
@@ -196,6 +196,8 @@ func tapReenable()    {}
 func tapRestart() bool { return true }
 
 func traySetup(openDashboard, quit func()) {} // TODO: windows tray (NotifyIcon)
+
+func traySetState(ok bool) {}
 
 // overlay restyle is macOS-specific; the Windows pill is already a plain
 // borderless window.

@@ -54,7 +54,9 @@ int DictationTapStart(void (*cb)(int, int)) {
             beginActivityWithOptions:NSActivityUserInitiatedAllowingIdleSystemSleep
                                reason:@"dictation key listener must stay live"];
     }
-    CGEventMask mask = CGEventMaskBit(kCGEventFlagsChanged);
+    // keyDown is watched only to CANCEL a pending hold (user is using ⌥ as a
+    // modifier, not dictating); events are discarded immediately.
+    CGEventMask mask = CGEventMaskBit(kCGEventFlagsChanged) | CGEventMaskBit(kCGEventKeyDown);
     g_tap = CGEventTapCreate(kCGSessionEventTap, kCGHeadInsertEventTap,
                              kCGEventTapOptionListenOnly, mask, tapCB, NULL);
     if (!g_tap) return 0;
@@ -141,7 +143,9 @@ int DictationTapRestart(void) {
                 CFRelease(g_tap);
                 g_tap = NULL;
             }
-            CGEventMask mask = CGEventMaskBit(kCGEventFlagsChanged);
+            // keyDown is watched only to CANCEL a pending hold (user is using ⌥ as a
+    // modifier, not dictating); events are discarded immediately.
+    CGEventMask mask = CGEventMaskBit(kCGEventFlagsChanged) | CGEventMaskBit(kCGEventKeyDown);
             g_tap = CGEventTapCreate(kCGSessionEventTap, kCGHeadInsertEventTap,
                                      kCGEventTapOptionListenOnly, mask, tapCB, NULL);
             if (g_tap) {

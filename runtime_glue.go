@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -112,15 +113,28 @@ func primaryScreenSize() (w, h float64) {
 	return 1440, 900
 }
 
+// micState reflects the last known real capture health (startup probe and
+// every finished recording). Sync probing in HTTP handlers is forbidden:
+// micStart blocks forever while a TCC prompt is unanswered.
+var micState atomic.Bool
+
 // micProbe opens/closes the mic briefly at launch so the OS permission
 // prompt appears early (attributed to the app, not a terminal).
 func micProbe() {
 	if !micStart() {
+		micState.Store(false)
 		log.Println("mic probe failed — grant Microphone permission, then restart")
 		return
 	}
 	time.Sleep(500 * time.Millisecond)
 	micStop()
+	_, _, rms, err := readSegment()
+	if err != nil || rms < 0.5 {
+		micState.Store(false)
+		log.Println("mic probe: digital silence — permission revoked?")
+		return
+	}
+	micState.Store(true)
 	log.Println("mic probe ok")
 }
 

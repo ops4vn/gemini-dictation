@@ -20,6 +20,27 @@ static NSStatusItem *g_item = nil;
 
 static GDTray *g_tray = nil;
 
+// red = permissions missing (dictation blocked), green = ready.
+// contentTintColor is ignored for status-bar template images — recolor via
+// symbol palette configuration instead.
+void DictationTraySetState(int ok) {
+    dispatch_sync(dispatch_get_main_queue(), ^{
+        if (!g_item) return;
+        NSImage *img = [NSImage imageWithSystemSymbolName:@"mic.circle.fill"
+                                  accessibilityDescription:@"Gemini Dictation"];
+        if (img) {
+            NSImageSymbolConfiguration *conf = [NSImageSymbolConfiguration
+                configurationWithPaletteColors:@[ok ? [NSColor systemGreenColor]
+                                                      : [NSColor systemRedColor]]];
+            NSImage *tinted = [img imageWithSymbolConfiguration:conf];
+            [tinted setTemplate:NO]; // status items force template unless cleared
+            g_item.button.image = tinted;
+        } else {
+            g_item.button.title = ok ? @"🟢" : @"🔴";
+        }
+    });
+}
+
 void DictationTraySetup(void) {
     dispatch_sync(dispatch_get_main_queue(), ^{
         if (g_item) return;

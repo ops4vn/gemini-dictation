@@ -21,18 +21,24 @@ func unlockFile(fd uintptr) { syscall.Flock(int(fd), syscall.LOCK_UN) }
 
 // startTap begins listening for Option-key hold/release; cb receives
 // key-down=true / key-up=false. ok=false means Input Monitoring missing.
-func startTap(cb func(down bool)) (bool, error) {
+func startTap(cb func(down bool), onOther func()) (bool, error) {
 	ch, ok, err := native.StartTap()
 	if err != nil || !ok {
 		return ok, err
 	}
 	go func() {
 		for ev := range ch {
+			if ev.Type == 10 { // kCGEventKeyDown — modifier use, not dictation
+				onOther()
+				continue
+			}
 			cb(ev.HasOption)
 		}
 	}()
 	return true, nil
 }
+
+func traySetState(ok bool) { native.TraySetState(ok) }
 
 func micStart() bool       { return native.MicStart() }
 func micLevel() float64    { return liveLevel() } // file-tail RMS; native metering dead

@@ -146,6 +146,28 @@ func (a *App) onOptionUpLocked() {
 	}
 }
 
+// OnOtherKey cancels a pending hold (or an active recording): the user is
+// using ⌥ as a plain modifier — text selection, special characters — not
+// dictating, so the pill must never appear.
+func (a *App) OnOtherKey() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.holdTimer != nil {
+		a.holdTimer.Stop()
+		a.holdTimer = nil
+		return
+	}
+	if a.mode != "" && !a.busy {
+		a.mode = ""
+		if a.maxTimer != nil {
+			a.maxTimer.Stop()
+		}
+		micStop()
+		a.emitPill(PillState{State: "hide"})
+		a.hidePill()
+	}
+}
+
 func (a *App) holdFired() {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -154,6 +176,12 @@ func (a *App) holdFired() {
 		return
 	}
 	c := a.cfg.Load()
+	if !tapPermission() || !axTrusted() {
+		// dictation blocked until Input Monitoring + Accessibility are on
+		playSound(c.Sounds, "Basso")
+		logf("dictation blocked — grant Input Monitoring + Accessibility (tray icon is red)")
+		return
+	}
 	if !micStart() {
 		playSound(c.Sounds, "Basso")
 		logf("mic failed to open (permission/device)")
@@ -238,6 +266,7 @@ func (a *App) finishLocked() {
 	}
 	micStop()
 	wav, dur, rms, err := readSegment()
+	micState.Store(rms > 1 && err == nil) // digital silence = revoked mic
 	logf("stopped (%s) — %.1fs, rms=%.0f", mode, dur, rms)
 	if err != nil || dur < a.cfg.Load().MinSeconds || rms < a.cfg.Load().SilenceRMS {
 		// silent discard — no popup for accidental Option holds
