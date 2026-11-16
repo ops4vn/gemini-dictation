@@ -16,6 +16,7 @@
   "silence_rms": 25,
   "sounds": true,
   "notifications": false,
+  "probe_mic_on_start": true,
   "trailing_space": true,
   "restore_clipboard": true,
   "debug_keys": false

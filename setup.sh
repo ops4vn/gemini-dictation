@@ -72,15 +72,28 @@ cat > "$HOME/Library/LaunchAgents/$LABEL.plist" <<AGENT
 AGENT
 launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/$LABEL.plist" 2>/dev/null \
   || launchctl kickstart -k "gui/$(id -u)/$LABEL" 2>/dev/null \
-  || open -a "$BINDIR/$APP"
+  || true
+open -a "$BINDIR/$APP"
+sleep 3
+
+echo ""
+echo "4/4  permissions (one-time — grants belong to the APP, not this terminal)"
+echo "  → Nếu macOS hỏi MICROPHONE ngay bây giờ: chọn Allow."
+read -p "  Nhấn Enter để mở System Settings → Input Monitoring… "
+open "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
+echo "  → Kéo THẢ 'Gemini Dictation' (file .app trong thư mục này) vào danh sách,"
+echo "    hoặc bấm + và chọn file .app — rồi bật ON."
+read -p "  Xong Input Monitoring? Nhấn Enter để mở Accessibility… "
+open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+echo "  → Kéo THẢ 'Gemini Dictation' vào danh sách (hoặc + → chọn .app) — bật ON."
+read -p "  Xong Accessibility? Nhấn Enter để khởi động lại app… "
+launchctl kickstart -k "gui/$(id -u)/$LABEL" 2>/dev/null || open -a "$BINDIR/$APP"
 
 echo ""
 echo "✅ Setup complete. Next:"
 echo "   1. Get a free API key: https://aistudio.google.com/apikey"
 echo "   2. .venv/bin/python dictation.py --set-key YOUR_KEY"
-echo "   3. If macOS prompts: allow Microphone + Input Monitoring + Accessibility"
-echo "      for 'Gemini Dictation' (System Settings → Privacy & Security), then"
-echo "      launchctl kickstart -k \"gui/\$(id -u)/$LABEL\""
 echo ""
 echo "Usage: hold ⌥ Option ≥1.5s → speak → release → text pasted at cursor."
 echo "Dashboard: http://127.0.0.1:7788"
+echo "Start later: ./start.sh (app instance — never runs in your terminal)"

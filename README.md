@@ -33,7 +33,18 @@ git clone https://github.com/ops4vn/gemini-dictation.git
 cd gemini-dictation
 ./setup.sh                                        # venv + .app bundle + autostart
 .venv/bin/python dictation.py --set-key YOUR_KEY  # your Gemini API key
+./start.sh                                        # launch (see below)
 ```
+
+`setup.sh` also walks you through the one-time permission grants: it opens
+System Settings at **Input Monitoring** and **Accessibility** and asks you to
+drag the `Gemini Dictation.app` into each list. Grants belong to the **app
+bundle**, never to your terminal — so you do this once, regardless of which
+terminal you ran setup from.
+
+Start the app later with `./start.sh` — it launches the **app instance** via
+`open -a` and never runs Python inside your terminal (that's what keeps
+permissions terminal-independent).
 
 Hold **⌥ Option ≥1.5s → speak → release**. Text is pasted at the cursor
 (Cmd+V round-trip, your clipboard is restored afterwards).

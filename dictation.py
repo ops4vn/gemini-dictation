@@ -70,6 +70,7 @@ DEFAULTS = {
     "silence_rms": 25,
     "sounds": True,
     "notifications": False,
+    "probe_mic_on_start": True,
     "trailing_space": True,
     "restore_clipboard": True,
     "show_on_press": False,
@@ -877,6 +878,17 @@ def run_repl(cfg: dict) -> None:
     popup = Popup.alloc().initWithQueue_level_(ui_q, app.recorder.level_norm)
     listener = keyboard.Listener(on_press=app.on_press, on_release=app.on_release)
     listener.start()
+    if cfg.get("probe_mic_on_start"):
+        # trigger the macOS microphone permission prompt at launch (attributed
+        # to the app bundle) instead of mid-recording on first use
+        def mic_probe():
+            probe = Recorder()
+            if probe.open_and_arm():
+                time.sleep(0.5)
+                probe.close()
+            else:
+                log("mic probe failed — grant Microphone permission, then restart")
+        threading.Thread(target=mic_probe, daemon=True).start()
     log(f"ready — HOLD ⌥ ≥ {cfg['hold_seconds']}s → speak → release → paste at cursor")
     log(f"backup toggle hotkey: {cfg['hotkey']}")
     popup.run()
