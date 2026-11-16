@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gemini Dictation — Quota</title>
+<style>
+  :root { --bg:#0b0e14; --card:#141824; --line:#232a3a; --text:#e7ecf5; --dim:#8b96ab;
+          --accent:#7aa2ff; --green:#4ade80; --red:#f87171; --amber:#fbbf24 }
+  * { box-sizing:border-box; margin:0 }
+  body { background:var(--bg); color:var(--text); font:14px/1.5 -apple-system,system-ui,sans-serif;
+         padding:28px; max-width:1060px; margin:0 auto }
+  header { display:flex; align-items:baseline; gap:12px; margin-bottom:24px }
+  h1 { font-size:20px; font-weight:650 }
+  .sub { color:var(--dim); font-size:13px }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px }
+  .card h2 { font-size:12px; font-weight:600; color:var(--dim); text-transform:uppercase;
+             letter-spacing:.05em; margin-bottom:12px }
+  .big { font-size:30px; font-weight:700; font-variant-numeric:tabular-nums }
+  .bar { height:8px; background:#1d2432; border-radius:4px; overflow:hidden; margin:10px 0 6px }
+  .bar i { display:block; height:100%; background:var(--accent); border-radius:4px }
+  .bar i.warn { background:var(--amber) } .bar i.full { background:var(--red) }
+  .meta { color:var(--dim); font-size:12px }
+  .ok { color:var(--green) } .err { color:var(--red) }
+  #hist { display:flex; align-items:flex-end; gap:6px; height:130px; margin-top:10px; padding-bottom:20px }
+  #hist div { flex:1; background:var(--accent); border-radius:4px 4px 0 0; min-height:2px; position:relative }
+  #hist span { position:absolute; bottom:-18px; left:0; right:0; text-align:center; font-size:10px; color:var(--dim) }
+  table { width:100%; border-collapse:collapse; font-size:13px }
+  th { color:var(--dim); text-align:left; font-weight:600; padding:6px 8px; border-bottom:1px solid var(--line) }
+  td { padding:6px 8px; border-bottom:1px solid var(--line); font-variant-numeric:tabular-nums }
+  a { color:var(--accent) }
+</style>
+</head>
+<body>
+<header>
+  <h1>Gemini Dictation</h1>
+  <span class="sub">quota dashboard — <span id="upd">…</span></span>
+  <span style="flex:1"></span>
+  <a href="https://aistudio.google.com/usage" target="_blank">AI Studio usage ↗</a>
+</header>
+
+<div class="grid" id="cards"></div>
+
+<div class="card" style="margin-top:16px">
+  <h2>14 ngày qua — requests/ngày</h2>
+  <div id="hist"></div>
+</div>
+
+<div class="card" style="margin-top:16px">
+  <h2>Yêu cầu gần đây</h2>
+  <table>
+    <thead><tr><th>Giờ</th><th>Model</th><th>Kết quả</th><th>Audio (s)</th><th>Tokens (vào→ra)</th><th>Latency</th></tr></thead>
+    <tbody id="recent"></tbody>
+  </table>
+</div>
+
+<p class="meta" style="margin-top:14px">
+  Giới hạn RPD/RPM là <b>ước lượng</b> cấu hình được trong <code>config.json</code> — Google không
+  công bố bảng free-tier tĩnh; con số thật hiển thị trong AI Studio. Nhận <b>429</b> nghĩa là đã
+  chạm quota thật của ngày.
+</p>
+
+<script>
+const total = m => Object.values(m || {}).reduce((a, b) => a + (b.requests || 0), 0);
+const fmt = s => s >= 60 ? (s / 60).toFixed(1) + ' phút' : Math.round(s) + 's';
+const agoMin = r => (Date.now() - new Date(r.date + 'T' + r.ts)) / 60000;
+
+async function load() {
+  try {
+    const d = await (await fetch('/api/usage')).json();
+    document.getElementById('upd').textContent = 'cập nhật ' + d.updated;
+    const today = d.daily[d.today] || {};
+    const cards = document.getElementById('cards');
+    cards.innerHTML = '';
+    for (const [model, lim] of Object.entries(d.limits || {})) {
+      const u = today[model] || {requests:0, errors:0, e429:0, audio_s:0, tin:0, tout:0};
+      const rem = Math.max(0, lim.rpd - u.requests);
+      const pct = Math.min(100, u.requests / lim.rpd * 100);
+      const cls = pct >= 100 ? 'full' : pct >= 70 ? 'warn' : '';
+      const rpm = (d.recent || []).filter(r => r.date === d.today && agoMin(r) < 1).length;
+      cards.insertAdjacentHTML('beforeend', `
+        <div class="card"><h2>${model}</h2>
+          <div class="big">${u.requests}<span style="color:var(--dim);font-size:15px"> / ${lim.rpd} ngày</span></div>
+          <div class="bar"><i class="${cls}" style="width:${pct}%"></i></div>
+          <div class="meta">còn lại ~${rem} request • ${rpm}/${lim.rpm} RPM trong phút này</div>
+          <div class="meta" style="margin-top:8px">audio ${fmt(u.audio_s || 0)} • tokens ${u.tin}→${u.tout} • lỗi ${u.errors}${u.e429 ? ` (429: ${u.e429})` : ''}</div>
+        </div>`);
+    }
+    const dates = Object.keys(d.daily).sort().slice(-14);
+    const max = Math.max(1, ...dates.map(x => total(d.daily[x])));
+    document.getElementById('hist').innerHTML = dates.map(x =>
+      `<div style="height:${Math.max(2, total(d.daily[x]) / max * 100)}%" title="${x}: ${total(d.daily[x])} requests"><span>${x.slice(5)}</span></div>`).join('');
+    document.getElementById('recent').innerHTML = (d.recent || []).slice(-15).reverse().map(r =>
+      `<tr><td>${r.ts}</td><td>${r.model.replace('gemini-', '')}</td>
+       <td class="${r.ok ? 'ok' : 'err'}">${r.ok ? 'OK' : (r.error || 'lỗi')}</td>
+       <td>${r.audio_s}</td><td>${r.tin}→${r.tout}</td><td>${r.latency}s</td></tr>`).join('');
+  } catch (e) { /* app not running */ }
+}
+load();
+setInterval(load, 10000);
+</script>
+</body>
+</html>

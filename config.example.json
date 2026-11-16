@@ -1,0 +1,22 @@
+{
+  "api_key": "PASTE_YOUR_GEMINI_API_KEY_HERE",
+  "model": "gemini-3.5-flash",
+  "disable_thinking": true,
+  "hotkey": "<ctrl>+<shift>+<space>",
+  "hold_seconds": 1.5,
+  "show_on_press": false,
+  "web_port": 7788,
+  "free_tier_limits": {
+    "gemini-3.5-flash": {"rpm": 10, "rpd": 250},
+    "gemini-3.5-flash-lite": {"rpm": 15, "rpd": 1000}
+  },
+  "sample_rate": 16000,
+  "max_seconds": 120,
+  "min_seconds": 0.35,
+  "silence_rms": 25,
+  "sounds": true,
+  "notifications": false,
+  "trailing_space": true,
+  "restore_clipboard": true,
+  "debug_keys": false
+}

@@ -1,0 +1,8 @@
+.venv/
+config.json
+usage.json
+usage_log.jsonl
+__pycache__/
+*.log
+.DS_Store
+Gemini Dictation.app/
