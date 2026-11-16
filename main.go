@@ -19,7 +19,8 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
-const lockPath = "/tmp/gemini_dictation.lock"
+// lockPath lives in the per-user temp dir (TMPDIR on darwin, %TEMP% on windows).
+var lockPath = filepath.Join(os.TempDir(), "gemini_dictation.lock")
 
 var logPathNote string
 

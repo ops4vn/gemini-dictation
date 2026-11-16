@@ -56,6 +56,30 @@ Start speaking **after the Pop** — audio before the threshold isn't captured.
 The transcript is pasted via a clipboard round-trip (your clipboard is
 restored ~1.5s later).
 
+## Windows
+
+The same app builds and runs on **Windows 10/11** with one difference: the
+trigger is **hold Alt** (left or right) ≥ 1.5s instead of ⌥. Everything else
+(waveform pill, dashboard, config, `--check`) works identically.
+
+- **Build**: `wails build -clean -s` on Windows (needs Go 1.24+, a C compiler
+  such as MinGW-w64 for the audio backend, and the WebView2 SDK pulled
+  automatically), or grab the CI artifact
+  `gemini-dictation-<ver>-windows-x64.zip` from GitHub releases — unzip and
+  run `Gemini Dictation.exe` (no installer).
+- **WebView2 runtime** is required (preinstalled on Windows 11 and most
+  updated Windows 10); otherwise install the
+  [Evergreen runtime](https://developer.microsoft.com/microsoft-edge/webview2/).
+- **SmartScreen**: the exe is unsigned, so first launch shows "Windows
+  protected your PC" — click **More info → Run anyway** (or right-click the
+  exe → Properties → check **Unblock**). The browser/console may warn the
+  download is uncommon — keep it anyway.
+- **Auto-update is check-only**: the app logs when a newer version is
+  available (same `latest.json` manifest, `windows` entry); download and
+  replace the exe manually. The macOS self-swap/relaunch does not apply.
+- Microphone access: Windows Settings → Privacy & security → Microphone →
+  allow desktop apps.
+
 ## Configuration
 
 `~/.gemini-dictation/config.json` (created on first run; `--set-key`,
