@@ -10,6 +10,7 @@ static CFMachPortRef g_tap = NULL;
 static CFRunLoopSourceRef g_tapSrc = NULL;
 static CFRunLoopRef g_tapLoop = NULL;
 static id g_napActivity = nil;
+static pthread_mutex_t g_mu = PTHREAD_MUTEX_INITIALIZER;
 static void (*g_callback)(int eventType, int hasOption) = NULL;
 
 static CGEventRef tapCB(CGEventTapProxy proxy, CGEventType type, CGEventRef event, void *refcon) {
@@ -33,9 +34,11 @@ static CGEventRef tapCB(CGEventTapProxy proxy, CGEventType type, CGEventRef even
 // Dedicated runloop thread: on the main runloop the tap starves whenever the
 // webview stalls main (wails dispatch storms) and macOS disables it for good.
 static void *tapThread(void *unused) {
+    pthread_mutex_lock(&g_mu);
     g_tapLoop = CFRunLoopGetCurrent();
     CFRetain(g_tapLoop);
     CFRunLoopAddSource(g_tapLoop, g_tapSrc, kCFRunLoopDefaultMode);
+    pthread_mutex_unlock(&g_mu);
     CFRunLoopRun();
     return NULL;
 }
@@ -92,6 +95,43 @@ int DictationTapIsEnabled(void) {
 // runs when the disable notice itself was lost (observed live).
 void DictationTapReenable(void) {
     if (g_tap) CGEventTapEnable(g_tap, true);
+}
+
+// Full recreate when re-enable doesn't stick (macOS re-disables a tap whose
+// eligibility lapsed). The tap is rebuilt ON THE TAP THREAD via
+// CFRunLoopPerformBlock — never tear the thread down (Stop+Start inline raced
+// the dying thread and SIGSEGV'd at pthread_create; crash 15:51:47).
+int DictationTapRestart(void) {
+    pthread_mutex_lock(&g_mu);
+    int scheduled = (g_callback && g_tapLoop) ? 1 : 0;
+    if (scheduled) {
+        CFRunLoopRef loop = g_tapLoop;
+        CFRunLoopPerformBlock(loop, kCFRunLoopDefaultMode, ^{
+            if (g_tap) {
+                CGEventTapEnable(g_tap, false);
+                if (g_tapSrc) {
+                    CFRunLoopRemoveSource(CFRunLoopGetCurrent(), g_tapSrc, kCFRunLoopDefaultMode);
+                    CFRelease(g_tapSrc);
+                    g_tapSrc = NULL;
+                }
+                CFRelease(g_tap);
+                g_tap = NULL;
+            }
+            CGEventMask mask = CGEventMaskBit(kCGEventFlagsChanged);
+            g_tap = CGEventTapCreate(kCGSessionEventTap, kCGHeadInsertEventTap,
+                                     kCGEventTapOptionListenOnly, mask, tapCB, NULL);
+            if (g_tap) {
+                g_tapSrc = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, g_tap, 0);
+                if (g_tapSrc) {
+                    CFRunLoopAddSource(CFRunLoopGetCurrent(), g_tapSrc, kCFRunLoopDefaultMode);
+                    CGEventTapEnable(g_tap, true);
+                }
+            }
+        });
+        CFRunLoopWakeUp(loop);
+    }
+    pthread_mutex_unlock(&g_mu);
+    return scheduled;
 }
 
 // cursor position (top-left global coords)

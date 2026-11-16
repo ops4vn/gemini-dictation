@@ -14,6 +14,7 @@ int  DictationTapStart(void (*cb)(int, int));
 void DictationTapStop(void);
 int  DictationTapIsEnabled(void);
 void DictationTapReenable(void);
+int  DictationTapRestart(void);
 int  DictationCursorPos(double *x, double *y);
 
 int    DictationAudioStart(void);
@@ -89,6 +90,11 @@ func TapIsEnabled() bool {
 // TapReenable forces the tap back on (Go-side watchdog path).
 func TapReenable() {
 	C.DictationTapReenable()
+}
+
+// TapRestart tears down and recreates the tap (last-resort self-heal).
+func TapRestart() bool {
+	return int(C.DictationTapRestart()) == 1
 }
 
 // MicStart opens a fresh capture session. False = mic denied/broken.

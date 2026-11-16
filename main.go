@@ -146,17 +146,31 @@ func (a *App) startupServices(cfg Config, quit chan struct{}) {
 	}()
 
 	// event-tap health monitor: macOS disables listen taps on runloop stalls
-	// and the disable notice itself can be lost — poll and force re-enable.
+	// and the disable notice itself can be lost — poll, re-enable, and if
+	// that doesn't stick recreate the tap from scratch.
 	go func() {
 		wasOn := true
+		fails := 0
 		for range time.Tick(15 * time.Second) {
 			on := tapEnabled()
 			if on != wasOn {
 				logf("event tap enabled=%v", on)
 				wasOn = on
 			}
-			if !on {
-				tapReenable()
+			if on {
+				fails = 0
+				continue
+			}
+			tapReenable()
+			fails++
+			if fails >= 2 {
+				if tapRestart() {
+					logf("event tap recreated after %d failed re-enables", fails)
+				} else {
+					logf("event tap recreate failed — re-grant Input Monitoring")
+				}
+				fails = 0
+			} else {
 				logf("event tap force re-enabled")
 			}
 		}

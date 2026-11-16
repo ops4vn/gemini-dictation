@@ -192,6 +192,7 @@ func micLevelFromRMS(sum float64, n int) float64 {
 // tap health watchdog is macOS-only (CGEventTap); no-op on Windows.
 func tapEnabled() bool { return true }
 func tapReenable()    {}
+func tapRestart() bool { return true }
 
 func micStart() bool {
 	micMu.Lock()
