@@ -23,6 +23,10 @@
         <string>true</string>
         <key>NSAppSleepDisabled</key>
         <true/>
+        <key>NSMicrophoneUsageDescription</key>
+        <string>Ghi âm giọng nói để chuyển thành văn bản bằng Gemini.</string>
+        <key>NSAppleEventsUsageDescription</key>
+        <string>Dán văn bản đã chuyển đổi vào vị trí con trỏ.</string>
         <key>NSHumanReadableCopyright</key>
         <string>{{.Info.Copyright}}</string>
         {{if .Info.FileAssociations}}

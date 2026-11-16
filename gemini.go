@@ -42,7 +42,9 @@ func Transcribe(wav []byte, cfg Config) (TranscribeResult, error) {
 			},
 		}},
 	}
-	if cfg.DisableThinking {
+	// flash-lite rejects thinkingConfig with HTTP 400 INVALID_ARGUMENT —
+	// only the thinking-capable models accept a zero budget
+	if cfg.DisableThinking && !strings.Contains(cfg.Model, "lite") {
 		body["generationConfig"] = map[string]any{
 			"thinkingConfig": map[string]int{"thinkingBudget": 0},
 		}

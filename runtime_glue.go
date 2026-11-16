@@ -33,6 +33,46 @@ func (a *atomicConfig) Store(c Config) {
 	a.mu.Unlock()
 }
 
+// liveLevel tails the segment WAV while recording and returns the RMS of the
+// last flushed bytes as a 0..1 meter (native metering is dead in-process —
+// see audio_darwin.m). The file flushes in ~10KB chunks with ~0.3s lag.
+func liveLevel() float64 {
+	f, err := os.Open(segmentPath())
+	if err != nil {
+		return 0
+	}
+	defer f.Close()
+	st, err := f.Stat()
+	if err != nil || st.Size() < 44+400 {
+		return 0
+	}
+	n := int64(3200)
+	if st.Size()-44 < n {
+		n = st.Size() - 44
+	}
+	buf := make([]byte, n)
+	if _, err := f.ReadAt(buf, st.Size()-n); err != nil {
+		return 0
+	}
+	var sum float64
+	for i := 0; i < len(buf)/2; i++ {
+		v := float64(int16(binary.LittleEndian.Uint16(buf[i*2:])))
+		sum += v * v
+	}
+	rms := math.Sqrt(sum / float64(len(buf)/2))
+	if rms == 0 {
+		return 0
+	}
+	db := 20 * math.Log10(rms / 32768)
+	if db < -60 {
+		return 0
+	}
+	if db > 0 {
+		return 1
+	}
+	return (db + 60) / 60
+}
+
 // readSegment reads the segment WAV produced by the platform mic layer.
 // Returns (bytes, durationSeconds, rms, err).
 func readSegment() ([]byte, float64, float64, error) {

@@ -1,3 +1,4 @@
+#include <pthread.h>
 #import <AVFoundation/AVFoundation.h>
 #import <AppKit/AppKit.h>
 #import <WebKit/WebKit.h>
@@ -87,6 +88,35 @@ int DictationSetClickThrough(const char *title, int enable) {
 
 static AVAudioRecorder *g_rec = nil;
 static NSString *g_path = nil;
+static CFRunLoopRef g_audioLoop = NULL;
+
+// Recorder lifecycle must live on a thread with its own runloop: created on
+// a bare goroutine thread capture intermittently died (file = zeros, no
+// orange mic indicator); via dispatch_sync(main) it died always. A dedicated
+// thread mirrors the proven CLI conditions.
+static void *audioThread(void *unused) {
+    g_audioLoop = CFRunLoopGetCurrent();
+    CFRetain(g_audioLoop);
+    CFRunLoopSourceContext ctx = {0};
+    CFRunLoopSourceRef src = CFRunLoopSourceCreate(kCFAllocatorDefault, 0, &ctx);
+    CFRunLoopAddSource(g_audioLoop, src, kCFRunLoopDefaultMode);
+    CFRunLoopRun();
+    return NULL;
+}
+
+static void audioSpawn(void) {
+    pthread_t t;
+    pthread_create(&t, NULL, audioThread, NULL);
+    pthread_detach(t);
+}
+
+static CFRunLoopRef audioLoop(void) {
+    static pthread_once_t once = PTHREAD_ONCE_INIT;
+    pthread_once(&once, audioSpawn);
+    // wait for the thread to publish its loop
+    for (int i = 0; i < 100 && !g_audioLoop; i++) usleep(1000);
+    return g_audioLoop;
+}
 
 int DictationAudioStart(void) {
     if (g_rec) return 1; // already armed
@@ -101,19 +131,30 @@ int DictationAudioStart(void) {
         AVLinearPCMIsNonInterleaved: @NO,
     };
     NSURL *url = [NSURL fileURLWithPath:g_path];
-    NSError *err = nil;
-    AVAudioRecorder *rec = [[AVAudioRecorder alloc] initWithURL:url settings:settings error:&err];
-    if (!rec) {
-        NSLog(@"mic init error: %@", err);
-        return 0;
-    }
-    rec.meteringEnabled = YES;
-    if (![rec record]) {
-        NSLog(@"mic record() refused");
-        return 0;
-    }
-    g_rec = rec;
-    return 1;
+    // stale segment = old bytes bleed into the next transcription
+    [[NSFileManager defaultManager] removeItemAtURL:url error:nil];
+    __block int ok = 0;
+    NSDictionary *cfg = settings;
+    CFRunLoopRef loop = audioLoop();
+    if (!loop) return 0;
+    CFRunLoopPerformBlock(loop, kCFRunLoopDefaultMode, ^{
+        NSError *err = nil;
+        AVAudioRecorder *rec = [[AVAudioRecorder alloc] initWithURL:url settings:cfg error:&err];
+        if (!rec) {
+            NSLog(@"[gd] mic init error: %@", err);
+            return;
+        }
+        rec.meteringEnabled = YES;
+        if (![rec record]) {
+            NSLog(@"[gd] mic record refused");
+            return;
+        }
+        g_rec = rec;
+        ok = 1;
+    });
+    CFRunLoopWakeUp(loop);
+    for (int i = 0; i < 100 && !ok; i++) usleep(1000); // brief wait for start
+    return ok;
 }
 
 double DictationAudioDuration(void) {
@@ -121,16 +162,21 @@ double DictationAudioDuration(void) {
 }
 
 double DictationAudioLevel(void) {
-    // normalized 0..1 from dBFS (-60..0)
-    if (!g_rec) return 0.0;
-    [g_rec updateMeters];
-    double db = [g_rec averagePowerForChannel:0];
-    if (db < -60.0) return 0.0;
-    if (db > 0.0) return 1.0;
-    return (db + 60.0) / 60.0;
+    // metering is permanently dead in this process (averagePower = -120 on
+    // any thread, even main — recorder created via dispatch_sync from cgo).
+    // Live level is computed Go-side from the segment file tail instead.
+    (void)0;
+    return 0.0;
 }
 
 void DictationAudioStop(void) {
+    if (g_rec && g_audioLoop) {
+        CFRunLoopPerformBlock(g_audioLoop, kCFRunLoopDefaultMode, ^{
+            [g_rec stop];
+        });
+        CFRunLoopWakeUp(g_audioLoop);
+        return;
+    }
     if (g_rec) {
         [g_rec stop];
         g_rec = nil;

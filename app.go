@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"log"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -169,6 +170,10 @@ func (a *App) holdFired() {
 	}
 	a.emitPill(PillState{State: "rec", T0: float64(holdT0.UnixMilli()) / 1000})
 	a.showPill()
+	time.AfterFunc(2*time.Second, func() { // waveform diagnostics
+		st, _ := os.Stat(segmentPath())
+		logf("level sample @2s: %.3f (segsize=%d)", micLevel(), st.Size())
+	})
 	logf("RECORDING (hold) — limit %.0fs", maxS)
 	a.maxTimer = time.AfterFunc(time.Duration(maxS*float64(time.Second)), func() {
 		a.mu.Lock()

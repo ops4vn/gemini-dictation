@@ -35,6 +35,7 @@ func startTap(cb func(down bool)) (bool, error) {
 }
 
 func micStart() bool       { return native.MicStart() }
+func micLevel() float64    { return liveLevel() } // file-tail RMS; native metering dead
 func tapEnabled() bool     { return native.TapIsEnabled() }
 func tapReenable()         { native.TapReenable() }
 func tapRestart() bool     { return native.TapRestart() }
@@ -68,7 +69,6 @@ func pasteProbe() bool {
 		`tell application "System Events" to get position of window 1 of process "Finder"`).Run() == nil
 }
 func micStop()             { native.MicStop() }
-func micLevel() float64    { return native.MicLevel() }
 func micDuration() float64 { return native.MicDuration() }
 
 func segmentPath() string { return native.SegmentPath }
