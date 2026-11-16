@@ -109,5 +109,8 @@ func StartDashboard(tracker *UsageTracker, cfg *atomicConfig, port int, quit cha
 // timeout so a pending prompt can't hang the dashboard.
 func permStatus() map[string]any {
 	st := map[string]any{"tap": tapEnabled(), "mic": micProbeQuick(), "paste": pasteProbe()}
+	if !st["paste"].(bool) {
+		promptAccessibility() // make macOS ASK for Accessibility (no prompt otherwise)
+	}
 	return st
 }

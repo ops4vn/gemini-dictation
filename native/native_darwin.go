@@ -6,13 +6,14 @@ package native
 
 /*
 #cgo CFLAGS: -x objective-c
-#cgo LDFLAGS: -framework AppKit -framework CoreFoundation -framework CoreGraphics -framework AVFoundation -framework Foundation -framework WebKit
+#cgo LDFLAGS: -framework AppKit -framework CoreFoundation -framework CoreGraphics -framework AVFoundation -framework Foundation -framework WebKit -framework ApplicationServices
 #include <stdlib.h>
 
 extern void DictationTapCallback(int eventType, int hasOption);
 int  DictationTapStart(void (*cb)(int, int));
 void DictationTapStop(void);
 int  DictationTapIsEnabled(void);
+int  DictationPromptAccessibility(void);
 void DictationTapReenable(void);
 int  DictationTapRestart(void);
 int  DictationCursorPos(double *x, double *y);
@@ -93,6 +94,12 @@ func TapIsEnabled() bool {
 // TapReenable forces the tap back on (Go-side watchdog path).
 func TapReenable() {
 	C.DictationTapReenable()
+}
+
+// PromptAccessibility shows the macOS trust dialog for Accessibility and
+// returns whether the app is currently trusted.
+func PromptAccessibility() bool {
+	return int(C.DictationPromptAccessibility()) == 1
 }
 
 // TapRestart tears down and recreates the tap (last-resort self-heal).

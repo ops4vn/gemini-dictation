@@ -69,6 +69,8 @@ func micProbeQuick() bool {
 // pasteProbe reads a UI element via System Events — UI scripting needs the
 // same Accessibility grant the paste keystroke does (a plain process-name
 // query only needs Automation and returns a false positive).
+func promptAccessibility() bool { return native.PromptAccessibility() }
+
 func pasteProbe() bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
 	defer cancel()

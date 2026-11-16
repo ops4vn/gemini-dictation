@@ -1,4 +1,5 @@
 #import <CoreGraphics/CoreGraphics.h>
+#import <ApplicationServices/ApplicationServices.h>
 #import <AppKit/AppKit.h>
 #import <CoreFoundation/CoreFoundation.h>
 #include <pthread.h>
@@ -85,6 +86,13 @@ void DictationTapStop(void) {
         g_tap = NULL;
         g_callback = NULL;
     }
+}
+
+// Ask macOS to show the Accessibility trust dialog (with a shortcut into
+// System Settings). Returns current trust state.
+int DictationPromptAccessibility(void) {
+    NSDictionary *opts = @{(__bridge NSString *)kAXTrustedCheckOptionPrompt: @YES};
+    return AXIsProcessTrustedWithOptions((__bridge CFDictionaryRef)opts) ? 1 : 0;
 }
 
 int DictationTapIsEnabled(void) {

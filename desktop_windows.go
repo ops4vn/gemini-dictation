@@ -223,6 +223,7 @@ func micProbeQuick() bool {
 }
 
 func pasteProbe() bool { return true }
+func promptAccessibility() bool { return true }
 
 func micStart() bool {
 	micMu.Lock()
