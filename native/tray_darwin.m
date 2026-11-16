@@ -25,9 +25,11 @@ void DictationTraySetup(void) {
         if (g_item) return;
         NSStatusBar *bar = [NSStatusBar systemStatusBar];
         g_item = [bar statusItemWithLength:NSVariableStatusItemLength];
+        [g_item retain]; // non-ARC translation unit — unretained items vanish
         NSImage *img = [NSImage imageWithSystemSymbolName:@"mic.circle.fill"
                                   accessibilityDescription:@"Gemini Dictation"];
         if (img) {
+            [img setTemplate:YES]; // adapt black/white to light/dark menu bar
             g_item.button.image = img;
         } else {
             g_item.button.title = @"🎙";
