@@ -435,6 +435,7 @@ class Popup(NSObject):
         self.t0 = 0.0
         self.hide_at = 0.0
         self.order_at = 0.0
+        self.app_dir = SCRIPT_DIR
 
         app = ak.NSApplication.sharedApplication()
         app.setActivationPolicy_(ak.NSApplicationActivationPolicyAccessory)
@@ -486,7 +487,48 @@ class Popup(NSObject):
         self.fx = fx
         self._ak = ak
         self._mouse = None
+        self._build_status_item()
         return self
+
+    # -- menu bar (quit/dashboard — the only user-visible controls) -------
+
+    @objc.python_method
+    def _build_status_item(self) -> None:
+        ak = self._ak
+        si = ak.NSStatusBar.systemStatusBar().statusItemWithLength_(
+            ak.NSVariableStatusItemLength)
+        btn = si.button()
+        icon = ak.NSImage.imageWithSystemSymbolName_accessibilityDescription_("mic.fill", None)
+        if icon is not None:
+            icon.setSize_((16, 16))
+            icon.setTemplate_(True)
+            btn.setImage_(icon)
+        else:
+            btn.setTitle_("🎙")
+        menu = ak.NSMenu.alloc().initWithTitle_("Gemini Dictation")
+        head = ak.NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            "Gemini Dictation", None, "")
+        head.setEnabled_(False)
+        menu.addItem_(head)
+        dash = ak.NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            "Mở Dashboard  (127.0.0.1:7788)", "statusDashboard:", "")
+        dash.setTarget_(self)
+        menu.addItem_(dash)
+        menu.addItem_(ak.NSMenuItem.separatorItem())
+        quit_item = ak.NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            "Quit Gemini Dictation", "statusQuit:", "q")
+        quit_item.setKeyEquivalentModifierMask_(ak.NSCommandKeyMask)
+        quit_item.setTarget_(self)
+        menu.addItem_(quit_item)
+        si.setMenu_(menu)
+        self.status_item = si
+
+    def statusDashboard_(self, sender) -> None:
+        subprocess.Popen(["open", f"http://127.0.0.1:{self.dash_port}"], check=False)
+
+    def statusQuit_(self, sender) -> None:
+        log("quit requested from menu bar")
+        self._ak.NSApplication.sharedApplication().terminate_(None)
 
     # -- layout ----------------------------------------------------------
 
@@ -876,6 +918,7 @@ def run_repl(cfg: dict) -> None:
     app.tracker = UsageTracker(cfg["model"])
     start_web(app.tracker, cfg)
     popup = Popup.alloc().initWithQueue_level_(ui_q, app.recorder.level_norm)
+    popup.dash_port = int(cfg.get("web_port", 7788))
     listener = keyboard.Listener(on_press=app.on_press, on_release=app.on_release)
     listener.start()
     if cfg.get("probe_mic_on_start"):

@@ -61,6 +61,10 @@ tail -f ~/Library/Logs/gemini-dictation.log         # logs
 
 ## Interaction model
 
+**Menu bar:** a small **mic icon** lives in the macOS menu bar while the app
+runs — click it for *Mở Dashboard* and **Quit** (⌘Q). That's the way to stop
+the app; `pkill -f dictation.py` works too.
+
 | Action | Result |
 |---|---|
 | press & hold **⌥ Option** | nothing happens yet — safe for normal Option use |
