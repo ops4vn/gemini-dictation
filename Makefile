@@ -48,3 +48,14 @@ install: ## install the built .app locally + LaunchAgent autostart
 
 clean:
 	rm -rf build/bin dist
+
+dev: ## separate "Gemini Dictation Dev" app (own bundle id/lock/port)
+	wails build -clean -s -ldflags "-X main.AppVersion=dev -X main.devBuild=true"
+	@# distinct identity: TCC grants, LaunchServices and the lock never clash
+	plutil -replace CFBundleIdentifier -string vn.ops4vn.gemini-dictation.dev "$(BUNDLE)/Contents/Info.plist"
+	plutil -replace CFBundleName -string "Gemini Dictation Dev" "$(BUNDLE)/Contents/Info.plist"
+	plutil -replace CFBundleDisplayName -string "Gemini Dictation Dev" "$(BUNDLE)/Contents/Info.plist" 2>/dev/null || true
+	codesign --force --deep --sign $(if $(DEV_ID),$(DEV_ID),-) -i vn.ops4vn.gemini-dictation.dev "$(BUNDLE)"
+	mv "$(BUNDLE)" "$(BIN_DIR)/Gemini Dictation Dev.app"
+	@echo "✅ $(BIN_DIR)/Gemini Dictation Dev.app (port 7789, lock .dev)"
+	@echo "   note: if BOTH apps run, they BOTH listen for ⌥ — quit one before dictating"

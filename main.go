@@ -21,7 +21,17 @@ import (
 var assets embed.FS
 
 // lockPath lives in the per-user temp dir (TMPDIR on darwin, %TEMP% on windows).
-var lockPath = filepath.Join(os.TempDir(), "gemini_dictation.lock")
+// Dev builds (make dev) use their own lock/port/bundle id so the installed
+// release and a local test build can coexist.
+var devBuild string // injected via -ldflags "-X main.devBuild=true"
+
+var lockPath = func() string {
+	p := filepath.Join(os.TempDir(), "gemini_dictation.lock")
+	if devBuild == "true" {
+		p += ".dev"
+	}
+	return p
+}()
 
 var logPathNote string
 
@@ -139,6 +149,10 @@ func (a *App) startupServices(cfg Config, quit chan struct{}) {
 			openURL(fmt.Sprintf("http://127.0.0.1:%d", cfg.WebPort))
 		}
 	})
+
+	if devBuild == "true" && cfg.WebPort == 7788 {
+		cfg.WebPort = 7789 // separate dashboard from the installed release
+	}
 
 	// menu-bar tray (app is Accessory — no Dock icon): dashboard + quit
 	traySetup(
