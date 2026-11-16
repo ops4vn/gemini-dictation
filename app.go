@@ -85,10 +85,10 @@ func (a *App) showPill() {
 		return
 	}
 	a.placePill()
-	runtime.WindowShow(pillCtx)
-	// re-assert click-through shortly after show (window may be recreated)
+	showWinNoActivate() // orderFrontRegardless — never steal focus
+	// re-assert overlay styling shortly after show (window may be recreated)
 	time.AfterFunc(1200*time.Millisecond, func() {
-		setClickThrough(pillTitle, true)
+		makeOverlay(pillTitle)
 	})
 }
 

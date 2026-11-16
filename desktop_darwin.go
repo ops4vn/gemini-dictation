@@ -38,6 +38,35 @@ func micStart() bool       { return native.MicStart() }
 func tapEnabled() bool     { return native.TapIsEnabled() }
 func tapReenable()         { native.TapReenable() }
 func tapRestart() bool     { return native.TapRestart() }
+
+// makeOverlay hides the app from Dock/⌘-Tab and floats the pill above all
+// windows (a true overlay, not an application window).
+func makeOverlay(title string) bool { return native.MakeOverlay(title) }
+
+// openURL opens a URL / settings pane (dashboard onboarding buttons).
+func openURL(u string) { exec.Command("open", u).Start() }
+
+// showWinNoActivate shows the pill without stealing keyboard focus.
+func showWinNoActivate() bool { return native.ShowWindow(pillTitle) }
+
+// micProbeQuick arms + immediately stops the mic to test the TCC grant.
+func micProbeQuick() bool {
+	if micStart() {
+		micStop()
+		return true
+	}
+	return false
+}
+
+// pasteProbe reads a UI element via System Events — UI scripting needs the
+// same Accessibility grant the paste keystroke does (a plain process-name
+// query only needs Automation and returns a false positive).
+func pasteProbe() bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+	defer cancel()
+	return exec.CommandContext(ctx, "/usr/bin/osascript", "-e",
+		`tell application "System Events" to get position of window 1 of process "Finder"`).Run() == nil
+}
 func micStop()             { native.MicStop() }
 func micLevel() float64    { return native.MicLevel() }
 func micDuration() float64 { return native.MicDuration() }

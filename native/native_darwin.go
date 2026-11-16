@@ -6,7 +6,7 @@ package native
 
 /*
 #cgo CFLAGS: -x objective-c
-#cgo LDFLAGS: -framework AppKit -framework CoreFoundation -framework CoreGraphics -framework AVFoundation -framework Foundation
+#cgo LDFLAGS: -framework AppKit -framework CoreFoundation -framework CoreGraphics -framework AVFoundation -framework Foundation -framework WebKit
 #include <stdlib.h>
 
 extern void DictationTapCallback(int eventType, int hasOption);
@@ -23,6 +23,8 @@ double DictationAudioLevel(void);
 void   DictationAudioStop(void);
 
 int DictationSetClickThrough(const char *title, int enable);
+int  DictationMakeOverlay(const char *title);
+int  DictationShowWindow(const char *title);
 */
 import "C"
 
@@ -126,6 +128,21 @@ func CursorPos() (float64, float64, bool) {
 		return 0, 0, false
 	}
 	return float64(x), float64(y), true
+}
+
+// MakeOverlay restyles the pill window as a floating overlay and hides the
+// app from the Dock / app switcher. Returns false if the window wasn't found.
+func MakeOverlay(title string) bool {
+	cstr := C.CString(title)
+	defer C.free(unsafe.Pointer(cstr))
+	return int(C.DictationMakeOverlay(cstr)) == 1
+}
+
+// ShowWindow orderFrontRegardless — visible without taking focus.
+func ShowWindow(title string) bool {
+	cstr := C.CString(title)
+	defer C.free(unsafe.Pointer(cstr))
+	return int(C.DictationShowWindow(cstr)) == 1
 }
 
 // SetClickThrough makes the Wails pill window transparent to clicks.

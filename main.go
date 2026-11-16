@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"embed"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -125,9 +126,17 @@ func (a *App) startupServices(cfg Config, quit chan struct{}) {
 		log.Println("key listener active — hold the trigger key to dictate")
 	}
 
-	// click-through for the pill window (after wails window exists)
+	// restyle the pill as an overlay + click-through (after wails window exists)
 	time.AfterFunc(2*time.Second, func() {
-		setClickThrough(pillTitle, true)
+		makeOverlay(pillTitle)
+	})
+
+	// first-run onboarding: if the key listener can't run (missing Input
+	// Monitoring), open the dashboard so the permission checklist is visible.
+	time.AfterFunc(3*time.Second, func() {
+		if !tapEnabled() {
+			openURL(fmt.Sprintf("http://127.0.0.1:%d", cfg.WebPort))
+		}
 	})
 
 	// Dock activation (launch/reopen) un-hides the window — keep it hidden

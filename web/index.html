@@ -42,6 +42,13 @@
 
 <div class="grid" id="cards"></div>
 
+<div class="card" id="permcard" style="margin-top:16px;display:none">
+  <h2>Quyền hệ thống (macOS)</h2>
+  <div id="perms" style="display:flex;gap:26px;flex-wrap:wrap"></div>
+  <p class="meta" style="margin-top:10px">Bật từng mục trong System Settings rồi chờ vài giây — trạng thái tự cập nhật.
+  Nếu bật rồi vẫn ✗: xóa app khỏi danh sách rồi thêm lại (binary mới sau mỗi lần cập nhật).</p>
+</div>
+
 <div class="card" style="margin-top:16px">
   <h2>14 ngày qua — requests/ngày</h2>
   <div id="hist"></div>
@@ -63,6 +70,34 @@
 
 <script>
 const total = m => Object.values(m || {}).reduce((a, b) => a + (b.requests || 0), 0);
+
+const PERMS = [
+  { k: 'tap',  name: 'Input Monitoring', desc: 'lắng nghe phím ⌥', pane: 'input' },
+  { k: 'mic',  name: 'Microphone',       desc: 'thu giọng nói',    pane: 'mic' },
+  { k: 'paste',name: 'Accessibility',    desc: 'gõ text vào con trỏ', pane: 'accessibility' },
+];
+
+async function loadPerms() {
+  try {
+    const p = await (await fetch('/api/perm')).json();
+    const el = document.getElementById('perms');
+    el.innerHTML = '';
+    for (const it of PERMS) {
+      const ok = p[it.k];
+      el.insertAdjacentHTML('beforeend', `
+        <div>
+          <div style="font-size:15px">${ok ? '✅' : '❌'} <b>${it.name}</b></div>
+          <div class="meta">${it.desc}</div>
+          ${ok ? '' : `<button onclick="openPane('${it.pane}')" style="margin-top:6px">Mở Settings</button>`}
+        </div>`);
+    }
+    document.getElementById('permcard').style.display = 'block';
+  } catch {}
+}
+
+function openPane(pane) {
+  fetch('/api/open?pane=' + pane, { method: 'POST' });
+}
 const fmt = s => s >= 60 ? (s / 60).toFixed(1) + ' phút' : Math.round(s) + 's';
 const agoMin = r => (Date.now() - new Date(r.date + 'T' + r.ts)) / 60000;
 
@@ -98,7 +133,9 @@ async function load() {
   } catch (e) { /* app not running */ }
 }
 load();
+loadPerms();
 setInterval(load, 10000);
+setInterval(loadPerms, 5000);
 </script>
 </body>
 </html>

@@ -19,6 +19,7 @@ import (
 	"unsafe"
 
 	"github.com/gen2brain/malgo"
+	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 	"golang.org/x/sys/windows"
 )
 
@@ -193,6 +194,33 @@ func micLevelFromRMS(sum float64, n int) float64 {
 func tapEnabled() bool { return true }
 func tapReenable()    {}
 func tapRestart() bool { return true }
+
+// overlay restyle is macOS-specific; the Windows pill is already a plain
+// borderless window.
+func makeOverlay(title string) bool { return false }
+
+func openURL(u string) {
+	exec.Command("rundll32", "url.dll,FileProtocolHandler", u).Start()
+}
+
+// wails WindowShow is fine on Windows (no app-activation semantics).
+func showWinNoActivate() bool {
+	if pillCtx != nil {
+		wailsruntime.WindowShow(pillCtx)
+		return true
+	}
+	return false
+}
+
+func micProbeQuick() bool {
+	if micStart() {
+		micStop()
+		return true
+	}
+	return false
+}
+
+func pasteProbe() bool { return true }
 
 func micStart() bool {
 	micMu.Lock()

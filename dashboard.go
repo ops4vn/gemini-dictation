@@ -55,10 +55,44 @@ func StartDashboard(tracker *UsageTracker, cfg *atomicConfig, port int, quit cha
 		}
 	})
 
+	// permission status for the onboarding checklist (macOS TCC services).
+	mux.HandleFunc("/api/perm", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(permStatus())
+	})
+
+	// open a System Settings privacy pane: mic | input | accessibility
+	mux.HandleFunc("/api/open", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "POST only", 405)
+			return
+		}
+		panes := map[string]string{
+			"mic":          "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone",
+			"input":        "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent",
+			"accessibility": "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
+		}
+		url := panes[r.URL.Query().Get("pane")]
+		if url == "" {
+			http.Error(w, "unknown pane", 400)
+			return
+		}
+		openURL(url)
+		w.Write([]byte(`{"ok":true}`))
+	})
+
 	mux.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"ok":true}`))
 	})
 
 	return http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", port), mux)
+}
+
+// permStatus checks the three macOS permissions the app needs. The paste
+// probe runs the same System Events call PasteAtCursor uses — with a short
+// timeout so a pending prompt can't hang the dashboard.
+func permStatus() map[string]any {
+	st := map[string]any{"tap": tapEnabled(), "mic": micProbeQuick(), "paste": pasteProbe()}
+	return st
 }
