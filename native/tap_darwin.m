@@ -1,12 +1,15 @@
 #import <CoreGraphics/CoreGraphics.h>
 #import <AppKit/AppKit.h>
 #import <CoreFoundation/CoreFoundation.h>
+#include <pthread.h>
 
 // CGEventTap listening for Option key flagsChanged (keycodes 58=left, 61=right).
 // Callback forwards (eventType, hasOptionFlag) to the Go side.
 
 static CFMachPortRef g_tap = NULL;
 static CFRunLoopSourceRef g_tapSrc = NULL;
+static CFRunLoopRef g_tapLoop = NULL;
+static id g_napActivity = nil;
 static void (*g_callback)(int eventType, int hasOption) = NULL;
 
 static CGEventRef tapCB(CGEventTapProxy proxy, CGEventType type, CGEventRef event, void *refcon) {
@@ -27,9 +30,26 @@ static CGEventRef tapCB(CGEventTapProxy proxy, CGEventType type, CGEventRef even
     return event;
 }
 
+// Dedicated runloop thread: on the main runloop the tap starves whenever the
+// webview stalls main (wails dispatch storms) and macOS disables it for good.
+static void *tapThread(void *unused) {
+    g_tapLoop = CFRunLoopGetCurrent();
+    CFRetain(g_tapLoop);
+    CFRunLoopAddSource(g_tapLoop, g_tapSrc, kCFRunLoopDefaultMode);
+    CFRunLoopRun();
+    return NULL;
+}
+
 int DictationTapStart(void (*cb)(int, int)) {
     if (g_tap) return 1; // already running
     g_callback = cb;
+    // Belt-and-suspenders with NSAppSleepDisabled in Info.plist: a napped
+    // process freezes the tap runloop and macOS disables the tap for good.
+    if (!g_napActivity) {
+        g_napActivity = [[NSProcessInfo processInfo]
+            beginActivityWithOptions:NSActivityUserInitiatedAllowingIdleSystemSleep
+                               reason:@"dictation key listener must stay live"];
+    }
     CGEventMask mask = CGEventMaskBit(kCGEventFlagsChanged);
     g_tap = CGEventTapCreate(kCGSessionEventTap, kCGHeadInsertEventTap,
                              kCGEventTapOptionListenOnly, mask, tapCB, NULL);
@@ -39,7 +59,9 @@ int DictationTapStart(void (*cb)(int, int)) {
         CFRelease(g_tap); g_tap = NULL;
         return 0;
     }
-    CFRunLoopAddSource(CFRunLoopGetMain(), g_tapSrc, kCFRunLoopCommonModes);
+    pthread_t t;
+    pthread_create(&t, NULL, tapThread, NULL);
+    pthread_detach(t);
     CGEventTapEnable(g_tap, true);
     return 1;
 }
@@ -47,8 +69,12 @@ int DictationTapStart(void (*cb)(int, int)) {
 void DictationTapStop(void) {
     if (g_tap) {
         CGEventTapEnable(g_tap, false);
+        if (g_tapLoop) {
+            CFRunLoopStop(g_tapLoop);
+            CFRelease(g_tapLoop);
+            g_tapLoop = NULL;
+        }
         if (g_tapSrc) {
-            CFRunLoopRemoveSource(CFRunLoopGetMain(), g_tapSrc, kCFRunLoopCommonModes);
             CFRelease(g_tapSrc);
             g_tapSrc = NULL;
         }
@@ -58,9 +84,18 @@ void DictationTapStop(void) {
     }
 }
 
+int DictationTapIsEnabled(void) {
+    return (g_tap && CGEventTapIsEnabled(g_tap)) ? 1 : 0;
+}
+
+// Force re-enable from the Go watchdog — the in-callback re-enable never
+// runs when the disable notice itself was lost (observed live).
+void DictationTapReenable(void) {
+    if (g_tap) CGEventTapEnable(g_tap, true);
+}
+
 // cursor position (top-left global coords)
-int DictationCursorPos(double *x, double *y) {
-    CGEventRef ev = CGEventCreate(NULL);
+int DictationCursorPos(double *x, double *y) {    CGEventRef ev = CGEventCreate(NULL);
     if (!ev) return 0;
     CGPoint p = CGEventGetLocation(ev);
     CFRelease(ev);

@@ -12,6 +12,8 @@ package native
 extern void DictationTapCallback(int eventType, int hasOption);
 int  DictationTapStart(void (*cb)(int, int));
 void DictationTapStop(void);
+int  DictationTapIsEnabled(void);
+void DictationTapReenable(void);
 int  DictationCursorPos(double *x, double *y);
 
 int    DictationAudioStart(void);
@@ -76,6 +78,17 @@ func StopTap() {
 	defer tapMu.Unlock()
 	C.DictationTapStop()
 	tapEvents = nil
+}
+
+// TapIsEnabled reports whether macOS still has the tap enabled (telemetry
+// for diagnosing silent tap death).
+func TapIsEnabled() bool {
+	return int(C.DictationTapIsEnabled()) == 1
+}
+
+// TapReenable forces the tap back on (Go-side watchdog path).
+func TapReenable() {
+	C.DictationTapReenable()
 }
 
 // MicStart opens a fresh capture session. False = mic denied/broken.

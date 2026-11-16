@@ -35,6 +35,8 @@ func startTap(cb func(down bool)) (bool, error) {
 }
 
 func micStart() bool       { return native.MicStart() }
+func tapEnabled() bool     { return native.TapIsEnabled() }
+func tapReenable()         { native.TapReenable() }
 func micStop()             { native.MicStop() }
 func micLevel() float64    { return native.MicLevel() }
 func micDuration() float64 { return native.MicDuration() }

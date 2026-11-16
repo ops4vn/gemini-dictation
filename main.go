@@ -145,6 +145,23 @@ func (a *App) startupServices(cfg Config, quit chan struct{}) {
 		}
 	}()
 
+	// event-tap health monitor: macOS disables listen taps on runloop stalls
+	// and the disable notice itself can be lost — poll and force re-enable.
+	go func() {
+		wasOn := true
+		for range time.Tick(15 * time.Second) {
+			on := tapEnabled()
+			if on != wasOn {
+				logf("event tap enabled=%v", on)
+				wasOn = on
+			}
+			if !on {
+				tapReenable()
+				logf("event tap force re-enabled")
+			}
+		}
+	}()
+
 	// dashboard (control surface + quota)
 	go func() {
 		if derr := StartDashboard(a.tracker, &a.cfg, cfg.WebPort, quit); derr != nil {
