@@ -44,9 +44,51 @@ jobs:
           path: build/bin/*.zip
           if-no-files-found: error
 
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - name: Ensure C compiler (CGO for malgo/miniaudio)
+        shell: pwsh
+        run: |
+          if (-not (Get-Command gcc -ErrorAction SilentlyContinue)) {
+            choco install mingw -y --no-progress
+            echo "C:\ProgramData\mingw64\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+          }
+          gcc --version
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.10.2
+
+      - name: Build
+        shell: bash
+        env:
+          CGO_ENABLED: "1"
+        run: |
+          VER="${GITHUB_REF_NAME:-dev}"
+          wails build -clean -s -ldflags "-X main.AppVersion=${VER}"
+
+      - name: Package
+        shell: bash
+        run: |
+          VER="${GITHUB_REF_NAME:-dev}"
+          cd build/bin
+          7z a "gemini-dictation-${VER}-windows-x64.zip" "Gemini Dictation.exe"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gemini-dictation-windows
+          path: build/bin/*.zip
+          if-no-files-found: error
+
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build-macos]
+    needs: [build-macos, build-windows]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -60,14 +102,17 @@ jobs:
           VER="${GITHUB_REF_NAME}"
           MAC=$(ls *macos*.zip)
           MSHA=$(shasum -a 256 "$MAC" | cut -d' ' -f1)
+          WIN=$(ls *windows*.zip)
+          WSHA=$(shasum -a 256 "$WIN" | cut -d' ' -f1)
           BASE="https://github.com/${GITHUB_REPOSITORY}/releases/download/${VER}"
           cat > latest.json <<EOF
           {
             "version": "${VER#v}",
-            "macos": { "sha256": "${MSHA}", "url": "${BASE}/${MAC}" }
+            "macos": { "sha256": "${MSHA}", "url": "${BASE}/${MAC}" },
+            "windows": { "sha256": "${WSHA}", "url": "${BASE}/${WIN}" }
           }
           EOF
-          shasum -a 256 "$MAC" > checksums.txt
+          shasum -a 256 "$MAC" "$WIN" > checksums.txt
           cat latest.json
 
       - uses: softprops/action-gh-release@v2
