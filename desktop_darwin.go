@@ -70,6 +70,8 @@ func micProbeQuick() bool {
 // same Accessibility grant the paste keystroke does (a plain process-name
 // query only needs Automation and returns a false positive).
 func promptAccessibility() bool { return native.PromptAccessibility() }
+func tapPermission() bool        { return native.TapPermission() }
+func tapRequest() bool           { return native.TapRequest() }
 
 func pasteProbe() bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)

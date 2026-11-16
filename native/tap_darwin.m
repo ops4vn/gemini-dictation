@@ -88,6 +88,17 @@ void DictationTapStop(void) {
     }
 }
 
+// TRUE Input Monitoring state — CGEventTapIsEnabled is a false positive on
+// fresh machines (the tap object exists, macOS just never delivers events).
+int DictationTapPermission(void) {
+    return CGPreflightListenEventAccess() ? 1 : 0;
+}
+
+// Ask macOS to prompt for Input Monitoring (the one prompt API that exists).
+int DictationTapRequest(void) {
+    return CGRequestListenEventAccess() ? 1 : 0;
+}
+
 // Ask macOS to show the Accessibility trust dialog (with a shortcut into
 // System Settings). Returns current trust state.
 int DictationPromptAccessibility(void) {

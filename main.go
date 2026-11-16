@@ -135,7 +135,7 @@ func (a *App) startupServices(cfg Config, quit chan struct{}) {
 	// settings shortcuts) until the user marks onboarding done
 	time.AfterFunc(3*time.Second, func() {
 		c := a.cfg.Load()
-		if !c.Onboarded || !tapEnabled() {
+		if !c.Onboarded || !tapPermission() {
 			openURL(fmt.Sprintf("http://127.0.0.1:%d", cfg.WebPort))
 		}
 	})

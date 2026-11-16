@@ -14,6 +14,8 @@ int  DictationTapStart(void (*cb)(int, int));
 void DictationTapStop(void);
 int  DictationTapIsEnabled(void);
 int  DictationPromptAccessibility(void);
+int  DictationTapPermission(void);
+int  DictationTapRequest(void);
 void DictationTapReenable(void);
 int  DictationTapRestart(void);
 int  DictationCursorPos(double *x, double *y);
@@ -94,6 +96,16 @@ func TapIsEnabled() bool {
 // TapReenable forces the tap back on (Go-side watchdog path).
 func TapReenable() {
 	C.DictationTapReenable()
+}
+
+// TapPermission reports real Input Monitoring state (preflight).
+func TapPermission() bool {
+	return int(C.DictationTapPermission()) == 1
+}
+
+// TapRequest asks macOS to prompt for Input Monitoring.
+func TapRequest() bool {
+	return int(C.DictationTapRequest()) == 1
 }
 
 // PromptAccessibility shows the macOS trust dialog for Accessibility and
