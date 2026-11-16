@@ -56,7 +56,7 @@ setInterval(async () => {
   render();
 }, 60);
 
-wails.Events.On('pill', (s) => {
+window.runtime.EventsOn('pill', (s) => {
   document.body.className = s.state;
   if (s.state === 'rec') { state.rec = true; state.t0 = s.t0 || Date.now()/1000; }
   else { state.rec = false; }

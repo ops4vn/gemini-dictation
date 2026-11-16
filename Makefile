@@ -9,7 +9,8 @@ BUNDLE := $(BIN_DIR)/$(APP_NAME).app
 build: ## adhoc-signed .app in build/bin
 	wails build -clean -s -ldflags "-X main.AppVersion=$(VERSION)"
 	@# adhoc signature so the app launches locally without a Developer ID
-	codesign --force --deep --sign - "$(BUNDLE)" 2>/dev/null || true
+	@# (stable identity keeps TCC grants across rebuilds — must match CI)
+	codesign --force --deep --sign - -i vn.ops4vn.gemini-dictation "$(BUNDLE)" 2>/dev/null || true
 	@echo "✅ $(BUNDLE) (version $(VERSION), unsigned/adhoc)"
 
 sign: build ## sign with Developer ID Application (requires cert in keychain)

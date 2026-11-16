@@ -130,6 +130,21 @@ func (a *App) startupServices(cfg Config, quit chan struct{}) {
 		setClickThrough(pillTitle, true)
 	})
 
+	// Dock activation (launch/reopen) un-hides the window — keep it hidden
+	// while idle so the app stays invisible when not dictating.
+	go func() {
+		t := time.NewTicker(2 * time.Second)
+		defer t.Stop()
+		for range t.C {
+			a.mu.Lock()
+			idle := a.mode == "" && !a.busy
+			a.mu.Unlock()
+			if idle {
+				a.hidePill()
+			}
+		}
+	}()
+
 	// dashboard (control surface + quota)
 	go func() {
 		if derr := StartDashboard(a.tracker, &a.cfg, cfg.WebPort, quit); derr != nil {

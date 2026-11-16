@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"os/exec"
 	"syscall"
 	"time"
@@ -51,16 +52,24 @@ func setClickThrough(title string, enable bool) bool {
 // PasteAtCursor inserts text at the focused caret: clipboard round-trip +
 // synthetic Cmd+V, restoring the previous clipboard shortly after.
 func PasteAtCursor(text string, cfg Config) {
+	// A pending Accessibility/Automation prompt blocks osascript forever;
+	// the timeout skips the paste instead of wedging `busy` so no later
+	// hold is ever accepted (observed live: tap goes deaf while the dialog
+	// waits for the user).
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	var old []byte
 	if cfg.RestoreClipboard {
-		if out, err := exec.Command("/usr/bin/pbpaste").Output(); err == nil {
+		if out, err := exec.CommandContext(ctx, "/usr/bin/pbpaste").Output(); err == nil {
 			old = out
 		}
 	}
 	pipeTo("/usr/bin/pbcopy", text)
 	time.Sleep(50 * time.Millisecond)
-	_ = exec.Command("/usr/bin/osascript", "-e",
-		`tell application "System Events" to keystroke "v" using command down`).Run()
+	if err := exec.CommandContext(ctx, "/usr/bin/osascript", "-e",
+		`tell application "System Events" to keystroke "v" using command down`).Run(); err != nil {
+		logf("paste failed (check Accessibility/Automation permission): %v", err)
+	}
 	if cfg.RestoreClipboard {
 		go func() {
 			time.Sleep(1500 * time.Millisecond)

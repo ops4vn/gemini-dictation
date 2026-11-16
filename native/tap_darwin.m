@@ -10,6 +10,12 @@ static CFRunLoopSourceRef g_tapSrc = NULL;
 static void (*g_callback)(int eventType, int hasOption) = NULL;
 
 static CGEventRef tapCB(CGEventTapProxy proxy, CGEventType type, CGEventRef event, void *refcon) {
+    // macOS disables a tap whose callback responds too slowly (main-runloop
+    // stalls from the webview) — re-enable or the listener dies for good.
+    if (type == kCGEventTapDisabledByTimeout || type == kCGEventTapDisabledByUserInput) {
+        CGEventTapEnable(g_tap, true);
+        return NULL;
+    }
     if (g_callback) {
         int hasOpt = 0;
         if (type == kCGEventFlagsChanged) {
