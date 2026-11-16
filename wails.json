@@ -1,0 +1,19 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "Gemini Dictation",
+  "outputfilename": "Gemini Dictation",
+  "frontend:install": "",
+  "frontend:build": "",
+  "frontend:dev:watcher": "",
+  "frontend:dev:Url": "http://localhost:5173",
+  "author": {
+    "name": "ops4vn"
+  },
+  "info": {
+    "productName": "Gemini Dictation",
+    "productVersion": "1.0.0",
+    "productIdentifier": "vn.ops4vn.gemini-dictation",
+    "copyright": "Copyright © 2026 ops4vn",
+    "comments": "Hold ⌥ to dictate with the Gemini API"
+  }
+}

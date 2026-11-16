@@ -1,3 +1,0 @@
-pynput
-numpy
-pyobjc-framework-AVFoundation
