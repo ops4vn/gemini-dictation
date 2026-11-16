@@ -257,6 +257,13 @@ func (a *App) process(wav []byte, audioS float64) {
 	var res TranscribeResult
 	var err error
 	res, err = Transcribe(wav, c)
+	if err != nil && isTransient(err) {
+		// Gemini 503 "high demand" spikes are usually seconds long — one
+		// backoff retry has saved recordings during real outages.
+		logf("transient API error (%v) — retrying once in 3s", err)
+		time.Sleep(3 * time.Second)
+		res, err = Transcribe(wav, c)
+	}
 	if err != nil {
 		errKind = "http"
 		var rl *RateLimitError
@@ -319,4 +326,18 @@ func playSound(sounds bool, name string) {
 	if sounds {
 		go playSoundFile(name)
 	}
+}
+
+// isTransient matches overload/unavailability where an immediate retry is
+// worth it (HTTP 503/504 from the Gemini backend).
+func isTransient(err error) bool {
+	if err == nil {
+		return false
+	}
+	if _, ok := err.(*RateLimitError); ok {
+		return false // 429: quota — retrying immediately won't help
+	}
+	msg := err.Error()
+	return strings.Contains(msg, " 503") || strings.Contains(msg, " 504") ||
+		strings.Contains(msg, "UNAVAILABLE") || strings.Contains(msg, "high demand")
 }
