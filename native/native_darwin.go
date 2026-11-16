@@ -15,6 +15,7 @@ void DictationTapStop(void);
 int  DictationTapIsEnabled(void);
 int  DictationPromptAccessibility(void);
 int  DictationTapPermission(void);
+int  DictationAXTrusted(void);
 int  DictationTapRequest(void);
 void DictationTapReenable(void);
 int  DictationTapRestart(void);
@@ -101,6 +102,11 @@ func TapReenable() {
 // TapPermission reports real Input Monitoring state (preflight).
 func TapPermission() bool {
 	return int(C.DictationTapPermission()) == 1
+}
+
+// AXTrusted reports Accessibility state without prompting.
+func AXTrusted() bool {
+	return int(C.DictationAXTrusted()) == 1
 }
 
 // TapRequest asks macOS to prompt for Input Monitoring.

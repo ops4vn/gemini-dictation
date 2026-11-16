@@ -99,6 +99,11 @@ int DictationTapRequest(void) {
     return CGRequestListenEventAccess() ? 1 : 0;
 }
 
+// Definitive Accessibility state (no side effects).
+int DictationAXTrusted(void) {
+    return AXIsProcessTrusted() ? 1 : 0;
+}
+
 // Ask macOS to show the Accessibility trust dialog (with a shortcut into
 // System Settings). Returns current trust state.
 int DictationPromptAccessibility(void) {

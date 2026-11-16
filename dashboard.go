@@ -108,7 +108,7 @@ func StartDashboard(tracker *UsageTracker, cfg *atomicConfig, port int, quit cha
 // probe runs the same System Events call PasteAtCursor uses — with a short
 // timeout so a pending prompt can't hang the dashboard.
 func permStatus() map[string]any {
-	st := map[string]any{"tap": tapPermission(), "mic": micProbeQuick(), "paste": pasteProbe()}
+	st := map[string]any{"tap": tapPermission(), "mic": micProbeQuick(), "paste": axTrusted()}
 	if !st["tap"].(bool) {
 		tapRequest() // make macOS prompt for Input Monitoring
 	}

@@ -224,6 +224,7 @@ func micProbeQuick() bool {
 
 func pasteProbe() bool { return true }
 func promptAccessibility() bool { return true }
+func axTrusted() bool        { return true }
 func tapPermission() bool        { return true }
 func tapRequest() bool           { return true }
 

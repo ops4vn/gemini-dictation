@@ -57,13 +57,20 @@ func traySetup(openDashboard, quit func()) {
 // showWinNoActivate shows the pill without stealing keyboard focus.
 func showWinNoActivate() bool { return native.ShowWindow(pillTitle) }
 
-// micProbeQuick arms + immediately stops the mic to test the TCC grant.
+// micProbeQuick tests REAL capture: denied mics "record" digital silence
+// (record() still returns YES), so arm briefly and check the segment has
+// a nonzero noise floor.
 func micProbeQuick() bool {
-	if micStart() {
-		micStop()
-		return true
+	if !micStart() {
+		return false
 	}
-	return false
+	time.Sleep(400 * time.Millisecond)
+	micStop()
+	raw, _, rms, err := readSegment()
+	if err != nil || len(raw) < 1600 {
+		return false
+	}
+	return rms > 0.5
 }
 
 // pasteProbe reads a UI element via System Events — UI scripting needs the
@@ -72,6 +79,8 @@ func micProbeQuick() bool {
 func promptAccessibility() bool { return native.PromptAccessibility() }
 func tapPermission() bool        { return native.TapPermission() }
 func tapRequest() bool           { return native.TapRequest() }
+
+func axTrusted() bool { return native.AXTrusted() }
 
 func pasteProbe() bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
