@@ -77,7 +77,31 @@ func Transcribe(wav []byte, cfg Config) (TranscribeResult, error) {
 			msg = msg[:200]
 		}
 		if resp.StatusCode == 429 {
-			return res, &RateLimitError{Detail: msg}
+			// the details section (cut from the old log) says WHICH quota
+			// (per-minute vs per-day) and how long to wait — keep it
+			var q struct {
+				Error struct {
+					Details []struct {
+						Violations []struct {
+							QuotaID string `json:"quotaId"`
+						} `json:"violations"`
+						RetryDelay string `json:"retryDelay"`
+					} `json:"details"`
+				} `json:"error"`
+			}
+			_ = json.Unmarshal(raw, &q)
+			rl := &RateLimitError{Detail: msg}
+			for _, d := range q.Error.Details {
+				for _, v := range d.Violations {
+					if v.QuotaID != "" {
+						rl.QuotaID = v.QuotaID
+					}
+				}
+				if d.RetryDelay != "" {
+					rl.RetryAfter, _ = time.ParseDuration(d.RetryDelay)
+				}
+			}
+			return res, rl
 		}
 		return res, fmt.Errorf("gemini HTTP %d: %s", resp.StatusCode, msg)
 	}
@@ -113,9 +137,18 @@ func Transcribe(wav []byte, cfg Config) (TranscribeResult, error) {
 	return res, nil
 }
 
-type RateLimitError struct{ Detail string }
+type RateLimitError struct {
+	Detail    string
+	QuotaID   string        // PerMinute* = transient, PerDay* = wait for reset
+	RetryAfter time.Duration // server-suggested wait
+}
 
-func (e *RateLimitError) Error() string { return "rate limit (429): " + e.Detail }
+func (e *RateLimitError) Error() string {
+	if e.QuotaID != "" {
+		return "rate limit (429, " + e.QuotaID + "): " + e.Detail
+	}
+	return "rate limit (429): " + e.Detail
+}
 
 // geminiListModels returns model names accessible with the given key.
 func geminiListModels(key string) ([]string, error) {

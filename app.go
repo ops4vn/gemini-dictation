@@ -298,6 +298,13 @@ func (a *App) process(wav []byte, audioS float64) {
 		time.Sleep(3 * time.Second)
 		res, err = Transcribe(wav, c)
 	}
+	if rl := (*RateLimitError)(nil); errors.As(err, &rl) && rl.RetryAfter > 0 && rl.RetryAfter <= 30*time.Second {
+		// per-minute quota windows pass quickly — better a late paste than
+		// a lost sentence (per-day quota has no retryDelay worth honoring)
+		logf("429 %s — server says retry in %s, waiting once", rl.QuotaID, rl.RetryAfter)
+		time.Sleep(rl.RetryAfter)
+		res, err = Transcribe(wav, c)
+	}
 	if err != nil {
 		errKind = "http"
 		var rl *RateLimitError

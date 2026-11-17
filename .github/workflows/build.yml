@@ -21,6 +21,20 @@ jobs:
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.10.2
 
+      - name: Import signing identity (stable across releases → TCC grants survive updates)
+        if: env.MACOS_SIGNING_P12 != ''
+        env:
+          MACOS_SIGNING_P12: ${{ secrets.MACOS_SIGNING_P12 }}
+          MACOS_SIGNING_PASS: ${{ secrets.MACOS_SIGNING_PASS }}
+        run: |
+          echo "$MACOS_SIGNING_P12" | base64 -d > /tmp/sign.p12
+          security create-keychain -p build /tmp/build.keychain
+          security default-keychains -s /tmp/build.keychain
+          security unlock-keychain -p build /tmp/build.keychain
+          security import /tmp/sign.p12 -k /tmp/build.keychain -P "$MACOS_SIGNING_PASS" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k build /tmp/build.keychain
+          rm /tmp/sign.p12
+
       - name: Build (universal arm64 + amd64)
         shell: bash
         env:
@@ -29,8 +43,10 @@ jobs:
           VER="${GITHUB_REF_NAME#v}"; VER="${VER:-dev}"
           wails build -clean -s -platform darwin/universal \
             -ldflags "-X main.AppVersion=${VER}"
-          # stable adhoc identity (wails' self-sign defaults to a.out)
-          codesign --force --deep --sign - \
+          # stable cert when available (adhoc = per-build CDHash = users
+          # must re-grant mic/input-monitoring/accessibility every update)
+          SIGN_ID=$(security find-identity -v -p codesigning 2>/dev/null | sed -n 's/.*"\(gemini-dictation-release\)".*/\1/p' | head -1)
+          codesign --force --deep --sign "${SIGN_ID:--}" \
             -i vn.ops4vn.gemini-dictation \
             "build/bin/Gemini Dictation.app"
 
