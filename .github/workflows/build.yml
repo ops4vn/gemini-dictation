@@ -32,8 +32,12 @@ jobs:
           security list-keychains -s /tmp/build.keychain
           security unlock-keychain -p build /tmp/build.keychain
           security import /tmp/sign.p12 -k /tmp/build.keychain -P "$MACOS_SIGNING_PASS" -T /usr/bin/codesign
+          # an untrusted self-signed cert shows as "0 valid identities" and
+          # codesign silently falls back to adhoc
+          openssl pkcs12 -in /tmp/sign.p12 -passin "pass:$MACOS_SIGNING_PASS" -nokeys -out /tmp/cert.crt
+          security add-trusted-cert -r trustRoot -p codeSign -k /tmp/build.keychain /tmp/cert.crt || true
           security set-key-partition-list -S apple-tool:,apple: -s -k build /tmp/build.keychain
-          rm /tmp/sign.p12
+          rm -f /tmp/sign.p12 /tmp/cert.crt
 
       - name: Build (universal arm64 + amd64)
         shell: bash
