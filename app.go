@@ -317,6 +317,13 @@ func (a *App) process(wav []byte, audioS float64) {
 		a.done()
 		return
 	}
+	if res.KeyIndex >= 0 && res.KeyIndex != c.KeyIndex && len(c.APIKeys) > 1 {
+		c.KeyIndex = res.KeyIndex
+		a.SetCfg(c)
+		if serr := SaveConfig(c); serr != nil {
+			logf("save key rotation: %v", serr)
+		}
+	}
 	text := strings.TrimSpace(res.Text)
 	logf("transcribed in %.1fs: %.120s", res.Latency.Seconds(), text)
 	if text == "" {

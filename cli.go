@@ -50,6 +50,8 @@ func RunCLI(args []string) bool {
 			os.Exit(1)
 		}
 		cfg.APIKey = args[1]
+		cfg.APIKeys = []string{args[1]}
+		cfg.KeyIndex = 0
 		if err := SaveConfig(cfg); err != nil {
 			fmt.Println("save failed:", err)
 			os.Exit(1)
@@ -83,6 +85,43 @@ func RunCLI(args []string) bool {
 
 	case "--config":
 		cliConfig(cfg)
+
+	case "--add-key":
+		if len(args) < 2 {
+			fmt.Println("usage: gemini-dictation --add-key YOUR_KEY")
+			return true
+		}
+		if _, err := apiListModels(args[1]); err != nil {
+			fmt.Println("❌ key không dùng được:", err)
+			os.Exit(1)
+		}
+		for _, k := range cfg.APIKeys {
+			if k == args[1] {
+				fmt.Println("key đã có trong danh sách")
+				return true
+			}
+		}
+		cfg.APIKeys = append(cfg.APIKeys, args[1])
+		cfg.APIKey = cfg.APIKeys[0]
+		if err := SaveConfig(cfg); err != nil {
+			fmt.Println("save failed:", err)
+			os.Exit(1)
+		}
+		fmt.Printf("✅ đã thêm key (%d key trong danh sách — tự rotate khi 429)\n", len(cfg.APIKeys))
+
+	case "--list-keys":
+		if len(cfg.APIKeys) == 0 {
+			fmt.Println("chưa có key nào (--set-key)")
+			return true
+		}
+		for i, k := range cfg.APIKeys {
+			mark := "  "
+			if i == cfg.KeyIndex {
+				mark = "→ "
+			}
+			fmt.Printf("%s#%d %s...%s\n", mark, i+1, k[:10], k[len(k)-4:])
+		}
+		fmt.Println("→ = key đang dùng; 429 sẽ tự nhảy key kế tiếp")
 
 	default:
 		fmt.Printf("unknown flag %q — try --help, --config, --set-key, --set-model, --check, --transcribe\n", args[0])

@@ -20,13 +20,47 @@ const DictationPrompt = "Transcribe this audio exactly as spoken. The speaker mi
 	"capitalization. Output ONLY the transcript text, nothing else."
 
 type TranscribeResult struct {
-	Text    string
-	TokensIn int
+	Text     string
+	TokensIn  int
 	TokensOut int
-	Latency time.Duration
+	Latency  time.Duration
+	KeyIndex int // which api key served the request (-1 = single key)
 }
 
+// Transcribe rotates through cfg.APIKeys on 429 — more keys = more quota.
 func Transcribe(wav []byte, cfg Config) (TranscribeResult, error) {
+	keys := cfg.APIKeys
+	if len(keys) == 0 && cfg.APIKey != "" {
+		keys = []string{cfg.APIKey}
+	}
+	if len(keys) == 0 {
+		return TranscribeResult{}, fmt.Errorf("no API key configured (gemini-dictation --set-key)")
+	}
+	start := cfg.KeyIndex
+	if start < 0 || start >= len(keys) {
+		start = 0
+	}
+	var lastErr error
+	for i := 0; i < len(keys); i++ {
+		idx := (start + i) % len(keys)
+		res, err := transcribeOnce(wav, cfg, keys[idx])
+		if err == nil {
+			res.KeyIndex = idx
+			if len(keys) > 1 && idx != start {
+				logf("key #%d served the request (rotated from #%d)", idx+1, start+1)
+			}
+			return res, nil
+		}
+		if rl, ok := err.(*RateLimitError); ok {
+			lastErr = rl // this key is throttled — try the next immediately
+			continue
+		}
+		return res, err
+	}
+	return TranscribeResult{}, lastErr
+}
+
+func transcribeOnce(wav []byte, cfg Config, key string) (TranscribeResult, error) {
 	res := TranscribeResult{}
 	b64 := base64.StdEncoding.EncodeToString(wav)
 	body := map[string]any{
@@ -56,7 +90,7 @@ func Transcribe(wav []byte, cfg Config) (TranscribeResult, error) {
 	}
 	jbody, _ := json.Marshal(body)
 	req, err := http.NewRequest("POST",
-		fmt.Sprintf("%s/%s:generateContent?key=%s", APIBase, cfg.Model, cfg.APIKey),
+		fmt.Sprintf("%s/%s:generateContent?key=%s", APIBase, cfg.Model, key),
 		bytes.NewReader(jbody))
 	if err != nil {
 		return res, err

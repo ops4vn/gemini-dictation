@@ -10,7 +10,9 @@ import (
 
 // Config mirrors config.json. Defaults applied over the file (see LoadConfig).
 type Config struct {
-	APIKey           string                       `json:"api_key"`
+	APIKey           string                       `json:"api_key"` // legacy single key (mirrors APIKeys[0])
+	APIKeys          []string                     `json:"api_keys"`
+	KeyIndex         int                          `json:"key_index"`
 	Model            string                       `json:"model"`
 	DisableThinking  bool                         `json:"disable_thinking"`
 	Hotkey           string                       `json:"hotkey"`
@@ -86,6 +88,9 @@ func LoadConfig() (Config, error) {
 	}
 	if err := json.Unmarshal(raw, &cfg); err != nil {
 		return Defaults(), fmt.Errorf("config %s: %w", p, err)
+	}
+	if len(cfg.APIKeys) == 0 && cfg.APIKey != "" {
+		cfg.APIKeys = []string{cfg.APIKey} // migrate legacy single-key config
 	}
 	if cfg.APIKey == "" {
 		return cfg, errors.New("config: api_key is empty — run with --set-key")
