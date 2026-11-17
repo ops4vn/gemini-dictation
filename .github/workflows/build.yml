@@ -29,7 +29,7 @@ jobs:
         run: |
           echo "$MACOS_SIGNING_P12" | base64 -d > /tmp/sign.p12
           security create-keychain -p build /tmp/build.keychain
-          security default-keychains -s /tmp/build.keychain
+          security list-keychains -s /tmp/build.keychain
           security unlock-keychain -p build /tmp/build.keychain
           security import /tmp/sign.p12 -k /tmp/build.keychain -P "$MACOS_SIGNING_PASS" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple: -s -k build /tmp/build.keychain
